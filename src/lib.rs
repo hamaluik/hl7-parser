@@ -8,6 +8,8 @@ use nom::{
 };
 use nom_locate::{position, LocatedSpan};
 
+mod time;
+
 pub type Span<'a> = LocatedSpan<&'a str>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
