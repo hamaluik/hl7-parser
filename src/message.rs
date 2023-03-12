@@ -20,8 +20,13 @@ pub struct LocatedData<'s> {
 
 impl<'s> Message<'s> {
     pub fn parse(source: &'s str) -> Result<Message<'s>, ParseError> {
-        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(source))
-            .map_err(|_| ParseError::Failed)?;
+        let (_, message) =
+            crate::parser::parse_message(crate::parser::Span::new(source)).map_err(|e| {
+                if cfg!(debug_assertions) {
+                    eprintln!("parse error: {e:#?}");
+                }
+                ParseError::Failed
+            })?;
         Ok(message)
     }
 

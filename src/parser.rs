@@ -388,7 +388,7 @@ mod tests {
         let message = include_str!("../test_assets/sample_adt_a01.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = Message::parse(message.as_str()).expect("can parse message");
+        let message = Message::parse(&message).expect("can parse message");
 
         assert!(message.has_segment("EVN"));
         assert!(message.has_segment("PID"));
