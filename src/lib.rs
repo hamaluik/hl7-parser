@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZeroUsize};
+use std::{collections::HashMap, num::NonZeroUsize, ops::Range};
 
 use nom::{
     bytes::complete::{tag, take, take_till},
@@ -11,9 +11,7 @@ use nom_locate::{position, LocatedSpan};
 pub type Span<'a> = LocatedSpan<&'a str>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Separators<'s> {
-    source_field: &'s str,
-    source_encoding: &'s str,
+pub struct Separators {
     pub field: char,
     pub component: char,
     pub repeat: char,
@@ -21,11 +19,9 @@ pub struct Separators<'s> {
     pub subcomponent: char,
 }
 
-impl Default for Separators<'static> {
+impl Default for Separators {
     fn default() -> Self {
         Separators {
-            source_field: "|",
-            source_encoding: "^~\\&",
             field: '|',
             component: '^',
             repeat: '~',
@@ -35,8 +31,8 @@ impl Default for Separators<'static> {
     }
 }
 
-impl<'s> Separators<'s> {
-    pub fn decode(&'s self, source: &str) -> String {
+impl Separators {
+    pub fn decode(&self, source: &str) -> String {
         let mut tmp = [0; 4];
         source
             .replace(r#"\F\"#, self.field.encode_utf8(&mut tmp))
@@ -51,93 +47,145 @@ impl<'s> Separators<'s> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubComponent<'s> {
-    pub source: &'s str,
-    pub position: Span<'s>,
+pub struct SubComponent {
+    pub range: Range<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Component<'s> {
-    pub source: &'s str,
-    pub position: Span<'s>,
-    pub sub_components: Vec<SubComponent<'s>>,
-}
-
-impl<'s> Component<'s> {
-    pub fn sub_component(&'s self, sub_component: NonZeroUsize) -> Option<&'s SubComponent<'s>> {
-        self.sub_components.get(sub_component.get() - 1)
+impl SubComponent {
+    #[inline]
+    pub fn source<'s>(&self, s: &'s str) -> &'s str {
+        &s[self.range.clone()]
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Field<'s> {
-    pub source: &'s str,
-    pub position: Span<'s>,
-    pub components: Vec<Component<'s>>,
+pub struct Component {
+    pub range: Range<usize>,
+    pub sub_components: Vec<SubComponent>,
 }
 
-impl<'s> Field<'s> {
-    pub fn component(&'s self, component: NonZeroUsize) -> Option<&'s Component<'s>> {
+impl Component {
+    pub fn sub_component(&self, sub_component: NonZeroUsize) -> Option<&SubComponent> {
+        self.sub_components.get(sub_component.get() - 1)
+    }
+
+    #[inline]
+    pub fn source<'s>(&self, s: &'s str) -> &'s str {
+        &s[self.range.clone()]
+    }
+}
+
+pub trait SubComponentAccessor {
+    fn sub_component(&self, sub_component: NonZeroUsize) -> Option<&SubComponent>;
+}
+
+impl SubComponentAccessor for Option<&Component> {
+    fn sub_component(&self, sub_component: NonZeroUsize) -> Option<&SubComponent> {
+        match self {
+            None => None,
+            Some(component) => component.sub_component(sub_component),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Field {
+    pub range: Range<usize>,
+    pub components: Vec<Component>,
+}
+
+impl Field {
+    pub fn component(&self, component: NonZeroUsize) -> Option<&Component> {
         self.components.get(component.get() - 1)
+    }
+
+    #[inline]
+    pub fn source<'s>(&self, s: &'s str) -> &'s str {
+        &s[self.range.clone()]
+    }
+}
+
+pub trait ComponentAccessor {
+    fn component(&self, component: NonZeroUsize) -> Option<&Component>;
+}
+
+impl ComponentAccessor for Option<&Field> {
+    fn component(&self, component: NonZeroUsize) -> Option<&Component> {
+        match self {
+            None => None,
+            Some(field) => field.component(component),
+        }
     }
 }
 
 #[derive(Debug)]
-pub struct MSH<'s> {
-    pub source: &'s str,
-    pub separators: Separators<'s>,
-    pub fields: Vec<Field<'s>>,
+pub struct MSH {
+    pub range: Range<usize>,
+    pub separators: Separators,
+    pub fields: Vec<Field>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Segment<'s> {
-    pub source: &'s str,
-    pub fields: Vec<Field<'s>>,
+pub struct Segment {
+    pub range: Range<usize>,
+    pub fields: Vec<Field>,
 }
 
-impl<'s> Segment<'s> {
-    pub fn field(&'s self, field: NonZeroUsize) -> Option<&'s Field<'s>> {
+impl Segment {
+    pub fn field(&self, field: NonZeroUsize) -> Option<&Field> {
         self.fields.get(field.get() - 1)
+    }
+
+    #[inline]
+    pub fn source<'s>(&self, s: &'s str) -> &'s str {
+        &s[self.range.clone()]
     }
 }
 
-impl<'s> From<MSH<'s>> for Segment<'s> {
-    fn from(msh: MSH<'s>) -> Self {
+pub trait FieldAccessor {
+    fn field(&self, field: NonZeroUsize) -> Option<&Field>;
+}
+
+impl FieldAccessor for Option<&Segment> {
+    fn field(&self, field: NonZeroUsize) -> Option<&Field> {
+        match self {
+            None => None,
+            Some(seg) => seg.field(field),
+        }
+    }
+}
+
+impl From<MSH> for Segment {
+    fn from(msh: MSH) -> Self {
         let MSH {
-            source,
-            separators,
-            mut fields,
+            range, mut fields, ..
         } = msh;
         fields.insert(
             0,
             Field {
-                source: separators.source_field,
-                position: unsafe { Span::new_from_raw_offset(3, 0, separators.source_field, ()) },
+                range: 3..4,
                 components: Vec::with_capacity(0),
             },
         );
         fields.insert(
             1,
             Field {
-                source: separators.source_encoding,
-                position: unsafe {
-                    Span::new_from_raw_offset(4, 0, separators.source_encoding, ())
-                },
+                range: 4..8,
                 components: Vec::with_capacity(0),
             },
         );
-        Segment { source, fields }
+        Segment { range, fields }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Segments<'s> {
-    Single(Segment<'s>),
-    Many(Vec<Segment<'s>>),
+pub enum Segments {
+    Single(Segment),
+    Many(Vec<Segment>),
 }
 
-impl<'s> Segments<'s> {
-    fn nth(&'s self, n: usize) -> Option<&'s Segment<'s>> {
+impl Segments {
+    fn nth(&self, n: usize) -> Option<&Segment> {
         match self {
             Segments::Single(seg) if n == 0 => Some(seg),
             Segments::Many(segs) if n < segs.len() => Some(&segs[n]),
@@ -153,22 +201,23 @@ impl<'s> Segments<'s> {
     }
 }
 
-impl<'s> From<Segment<'s>> for Segments<'s> {
-    fn from(value: Segment<'s>) -> Self {
+impl From<Segment> for Segments {
+    fn from(value: Segment) -> Self {
         Segments::Single(value)
     }
 }
 
-impl<'s> From<Vec<Segment<'s>>> for Segments<'s> {
-    fn from(value: Vec<Segment<'s>>) -> Self {
+impl From<Vec<Segment>> for Segments {
+    fn from(value: Vec<Segment>) -> Self {
         Segments::Many(value)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Message<'s> {
-    pub separators: Separators<'s>,
-    pub segments: HashMap<&'s str, Segments<'s>>,
+    pub source: &'s str,
+    pub separators: Separators,
+    pub segments: HashMap<&'s str, Segments>,
 }
 
 fn parse_separators(s: Span) -> IResult<Span, Separators> {
@@ -186,8 +235,6 @@ fn parse_separators(s: Span) -> IResult<Span, Separators> {
     let subcomponent = ec.next().unwrap();
 
     let separators = Separators {
-        source_field,
-        source_encoding,
         field,
         component,
         repeat,
@@ -210,8 +257,8 @@ fn sub_component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span
         Ok((
             s,
             SubComponent {
-                source: source.fragment(),
-                position,
+                range: position.location_offset()
+                    ..(position.location_offset() + source.fragment().len()),
             },
         ))
     }
@@ -219,67 +266,57 @@ fn sub_component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span
 
 fn sub_components_parser(
     separators: Separators,
-) -> impl Fn(Span) -> IResult<Span, Vec<SubComponent>> + '_ {
+) -> impl Fn(Span) -> IResult<Span, Vec<SubComponent>> {
     move |s: Span| -> IResult<Span, Vec<SubComponent>> {
         let parse_sub_component = sub_component_parser(separators);
         separated_list0(char(separators.subcomponent), parse_sub_component)(s)
     }
 }
 
-fn component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Component> + '_ {
+fn component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Component> {
     move |s: Span| -> IResult<Span, Component> {
         let parse_sub_components = sub_components_parser(separators);
 
-        let start = s;
         let (s, start_pos) = position(s)?;
         let (s, sub_components) = parse_sub_components(s)?;
-
         let (s, end_pos) = position(s)?;
-        let source = &start[..(end_pos.location_offset() - start_pos.location_offset())];
 
         Ok((
             s,
             Component {
-                source,
-                position: start_pos,
+                range: start_pos.location_offset()..end_pos.location_offset(),
                 sub_components,
             },
         ))
     }
 }
 
-fn components_parser(
-    separators: Separators,
-) -> impl Fn(Span) -> IResult<Span, Vec<Component>> + '_ {
+fn components_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Component>> {
     move |s: Span| -> IResult<Span, Vec<Component>> {
         let parse_component = component_parser(separators);
         separated_list0(char(separators.component), parse_component)(s)
     }
 }
 
-fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field> + '_ {
+fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field> {
     move |s: Span| -> IResult<Span, Field> {
         let parse_components = components_parser(separators);
 
-        let start = s;
         let (s, start_pos) = position(s)?;
         let (s, components) = parse_components(s)?;
-
         let (s, end_pos) = position(s)?;
-        let source = &start[..(end_pos.location_offset() - start_pos.location_offset())];
 
         Ok((
             s,
             Field {
-                source,
+                range: start_pos.location_offset()..end_pos.location_offset(),
                 components,
-                position: start_pos,
             },
         ))
     }
 }
 
-fn fields_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Field>> + '_ {
+fn fields_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Field>> {
     move |s: Span| -> IResult<Span, Vec<Field>> {
         let parse_field = field_parser(separators);
         separated_list0(char(separators.field), parse_field)(s)
@@ -287,7 +324,6 @@ fn fields_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<F
 }
 
 fn parse_msh(s: Span) -> IResult<Span, MSH> {
-    let start = s;
     let (s, start_pos) = position(s)?;
 
     let (s, _) = tag("MSH")(s)?;
@@ -297,22 +333,20 @@ fn parse_msh(s: Span) -> IResult<Span, MSH> {
     let parse_fields = fields_parser(separators);
     let (s, fields) = parse_fields(s)?;
 
-    let (s, pos) = position(s)?;
-    let source = &start[..(pos.location_offset() - start_pos.location_offset())];
+    let (s, end_pos) = position(s)?;
 
     Ok((
         s,
         MSH {
-            source,
+            range: start_pos.location_offset()..end_pos.location_offset(),
             separators,
             fields,
         },
     ))
 }
 
-fn segment_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, (&str, Segment)> + '_ {
+fn segment_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, (&str, Segment)> {
     move |s: Span| -> IResult<Span, (&str, Segment)> {
-        let start = s;
         let (s, start_pos) = position(s)?;
 
         let (s, identifier) = take(3u8)(s)?;
@@ -320,15 +354,23 @@ fn segment_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, (&st
 
         let parse_fields = fields_parser(separators);
         let (s, fields) = parse_fields(s)?;
+        let (s, end_pos) = position(s)?;
 
-        let (s, pos) = position(s)?;
-        let source = &start[..(pos.location_offset() - start_pos.location_offset())];
-
-        Ok((s, (identifier.fragment(), Segment { source, fields })))
+        Ok((
+            s,
+            (
+                identifier.fragment(),
+                Segment {
+                    range: start_pos.location_offset()..end_pos.location_offset(),
+                    fields,
+                },
+            ),
+        ))
     }
 }
 
 fn parse_message(s: Span) -> IResult<Span, Message> {
+    let source = s.fragment();
     let (s, msh) = parse_msh(s)?;
 
     let separators = msh.separators;
@@ -359,6 +401,7 @@ fn parse_message(s: Span) -> IResult<Span, Message> {
     Ok((
         s,
         Message {
+            source,
             separators,
             segments,
         },
@@ -375,7 +418,7 @@ impl<'s> Message<'s> {
         self.segments.contains_key(segment)
     }
 
-    pub fn segment(&'s self, segment: &str) -> Option<&'s Segment<'s>> {
+    pub fn segment(&'s self, segment: &str) -> Option<&'s Segment> {
         self.segments.get(segment).map(|seg| seg.nth(0)).flatten()
     }
 
@@ -386,7 +429,7 @@ impl<'s> Message<'s> {
             .unwrap_or_default()
     }
 
-    pub fn segment_n(&'s self, segment: &str, n: NonZeroUsize) -> Option<&'s Segment<'s>> {
+    pub fn segment_n(&'s self, segment: &str, n: NonZeroUsize) -> Option<&'s Segment> {
         self.segments
             .get(segment)
             .map(|seg| seg.nth(n.get() - 1))
@@ -412,8 +455,8 @@ mod tests {
         let (_, sub_components) =
             parse_sub_components(Span::new(sub_components)).expect("can parse sub components");
         assert_eq!(sub_components.len(), 2);
-        assert_eq!(sub_components[0].source, "abc");
-        assert_eq!(sub_components[1].source, "def");
+        assert_eq!(sub_components[0].source("abc&def"), "abc");
+        assert_eq!(sub_components[1].source("abc&def"), "def");
     }
 
     #[test]
@@ -427,7 +470,7 @@ mod tests {
         let sc2 = components[1]
             .sub_component(NonZeroUsize::new(2).unwrap())
             .expect("can get subcomponent 2");
-        assert_eq!(sc2.source, "ghi");
+        assert_eq!(sc2.source("abc^def&ghi^jkl"), "ghi");
     }
 
     #[test]
@@ -438,14 +481,14 @@ mod tests {
         let (_, components) =
             parse_components(Span::new(components)).expect("can parse components");
         assert_eq!(components.len(), 2);
-        assert_eq!(components[0].source, "ADT");
-        assert_eq!(components[1].source, "A01");
+        assert_eq!(components[0].source("ADT^A01"), "ADT");
+        assert_eq!(components[1].source("ADT^A01"), "A01");
 
         let components = "xyz";
         let (_, components) =
             parse_components(Span::new(components)).expect("can parse components");
         assert_eq!(components.len(), 1);
-        assert_eq!(components[0].source, "xyz");
+        assert_eq!(components[0].source("xyz"), "xyz");
     }
 
     #[test]
@@ -455,16 +498,16 @@ mod tests {
         let fields = "abc|def^hij";
         let (_, fields) = parse_fields(Span::new(fields)).expect("can parse fields");
         assert_eq!(fields.len(), 2);
-        assert_eq!(fields[0].source, "abc");
-        assert_eq!(fields[1].source, "def^hij");
+        assert_eq!(fields[0].source("abc|def^hij"), "abc");
+        assert_eq!(fields[1].source("abc|def^hij"), "def^hij");
         let c1 = fields[1]
             .component(NonZeroUsize::new(1).unwrap())
             .expect("can get component 1");
         let c2 = fields[1]
             .component(NonZeroUsize::new(2).unwrap())
             .expect("can get component 2");
-        assert_eq!(c1.source, "def");
-        assert_eq!(c2.source, "hij");
+        assert_eq!(c1.source("abc|def^hij"), "def");
+        assert_eq!(c2.source("abc|def^hij"), "hij");
     }
 
     #[test]
@@ -474,30 +517,41 @@ mod tests {
         let fields = "abc|def|hij^klm\r123";
         let (_, fields) = parse_fields(Span::new(fields)).expect("can parse fields");
         assert_eq!(fields.len(), 3);
-        assert_eq!(fields[0].source, "abc");
-        assert_eq!(fields[1].source, "def");
-        assert_eq!(fields[2].source, "hij^klm");
+        assert_eq!(fields[0].source("abc|def|hij^klm\r123"), "abc");
+        assert_eq!(fields[1].source("abc|def|hij^klm\r123"), "def");
+        assert_eq!(fields[2].source("abc|def|hij^klm\r123"), "hij^klm");
 
         let fields = "abc";
         let (_, fields) = parse_fields(Span::new(fields)).expect("can parse fields");
         assert_eq!(fields.len(), 1);
-        assert_eq!(fields[0].source, "abc");
+        assert_eq!(fields[0].source("abc"), "abc");
     }
 
     #[test]
     fn can_parse_msh() {
         let (_, msh) =
             parse_msh(Span::new("MSH|^~\\&|sfac|sapp|rfac|rapp")).expect("can parse msh");
-        assert_eq!(msh.source, "MSH|^~\\&|sfac|sapp|rfac|rapp");
         assert_eq!(msh.fields.len(), 4);
-        assert_eq!(msh.fields[0].source, "sfac");
-        assert_eq!(msh.fields[0].position.location_offset(), 9);
-        assert_eq!(msh.fields[1].source, "sapp");
-        assert_eq!(msh.fields[1].position.location_offset(), 14);
-        assert_eq!(msh.fields[2].source, "rfac");
-        assert_eq!(msh.fields[2].position.location_offset(), 19);
-        assert_eq!(msh.fields[3].source, "rapp");
-        assert_eq!(msh.fields[3].position.location_offset(), 24);
+        assert_eq!(
+            msh.fields[0].source("MSH|^~\\&|sfac|sapp|rfac|rapp"),
+            "sfac"
+        );
+        assert_eq!(msh.fields[0].range.start, 9);
+        assert_eq!(
+            msh.fields[1].source("MSH|^~\\&|sfac|sapp|rfac|rapp"),
+            "sapp"
+        );
+        assert_eq!(msh.fields[1].range.start, 14);
+        assert_eq!(
+            msh.fields[2].source("MSH|^~\\&|sfac|sapp|rfac|rapp"),
+            "rfac"
+        );
+        assert_eq!(msh.fields[2].range.start, 19);
+        assert_eq!(
+            msh.fields[3].source("MSH|^~\\&|sfac|sapp|rfac|rapp"),
+            "rapp"
+        );
+        assert_eq!(msh.fields[3].range.start, 24);
     }
 
     #[test]
@@ -508,19 +562,19 @@ mod tests {
         assert_eq!(
             seg.field(NonZeroUsize::new(1).unwrap())
                 .expect("can get field 1")
-                .source,
+                .source("MSH|^~\\&|sfac|sapp|rfac|rapp"),
             "|"
         );
         assert_eq!(
             seg.field(NonZeroUsize::new(2).unwrap())
                 .expect("can get field 2")
-                .source,
+                .source("MSH|^~\\&|sfac|sapp|rfac|rapp"),
             "^~\\&"
         );
         assert_eq!(
             seg.field(NonZeroUsize::new(3).unwrap())
                 .expect("can get field 3")
-                .source,
+                .source("MSH|^~\\&|sfac|sapp|rfac|rapp"),
             "sfac"
         );
     }
@@ -531,27 +585,27 @@ mod tests {
         let parse_segment = segment_parser(Separators::default());
         let (_, (identifier, segment)) =
             parse_segment(Span::new(segment)).expect("can parse segment");
-        assert_eq!(segment.source, "MSA|AA|1234|woohoo");
+        assert_eq!(segment.source("MSA|AA|1234|woohoo"), "MSA|AA|1234|woohoo");
         assert_eq!(identifier, "MSA");
         assert_eq!(
             segment
                 .field(NonZeroUsize::new(1).unwrap())
                 .expect("can get MSA.1")
-                .source,
+                .source("MSA|AA|1234|woohoo"),
             "AA"
         );
         assert_eq!(
             segment
                 .field(NonZeroUsize::new(2).unwrap())
                 .expect("can get MSA.2")
-                .source,
+                .source("MSA|AA|1234|woohoo"),
             "1234"
         );
         assert_eq!(
             segment
                 .field(NonZeroUsize::new(3).unwrap())
                 .expect("can get MSA.3")
-                .source,
+                .source("MSA|AA|1234|woohoo"),
             "woohoo"
         );
         assert!(segment.field(NonZeroUsize::new(4).unwrap()).is_none());
@@ -584,7 +638,7 @@ mod tests {
                 .expect("MSH segment exists")
                 .field(NonZeroUsize::new(9).unwrap())
                 .expect("field 9 exists")
-                .source,
+                .source(message.source),
             "ADT^A01"
         );
     }
@@ -610,6 +664,11 @@ mod tests {
 
         assert!(message.has_segment("OBX"));
         assert_eq!(message.segment_count("OBX"), 14);
+        // let obx14_3_2 = message
+        //     .segment_n("OBX", NonZeroUsize::new(14).unwrap())
+        //     .field(NonZeroUsize::new(3).unwrap())
+        //     .component(NonZeroUsize::new(2).unwrap())
+        //     .expect("can get OBX14.3.2");
         assert_eq!(
             message
                 .segment_n("OBX", NonZeroUsize::new(14).unwrap())
@@ -618,7 +677,7 @@ mod tests {
                 .expect("can get OBX14.3")
                 .component(NonZeroUsize::new(2).unwrap())
                 .expect("can get OBX14.3.2")
-                .source,
+                .source(message.source),
             "Basophils"
         )
     }
