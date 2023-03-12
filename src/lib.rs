@@ -65,6 +65,7 @@ pub struct Component {
 }
 
 impl Component {
+    #[inline]
     pub fn sub_component(&self, sub_component: NonZeroUsize) -> Option<&SubComponent> {
         self.sub_components.get(sub_component.get() - 1)
     }
@@ -73,6 +74,14 @@ impl Component {
     pub fn source<'s>(&self, s: &'s str) -> &'s str {
         &s[self.range.clone()]
     }
+
+    pub fn sub_component_at_cursor(&self, cursor: usize) -> Option<(NonZeroUsize, &SubComponent)> {
+        self.sub_components
+            .iter()
+            .enumerate()
+            .find(|(_, sub_component)| sub_component.range.contains(&cursor))
+            .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
+    }
 }
 
 pub trait SubComponentAccessor {
@@ -80,6 +89,7 @@ pub trait SubComponentAccessor {
 }
 
 impl SubComponentAccessor for Option<&Component> {
+    #[inline]
     fn sub_component(&self, sub_component: NonZeroUsize) -> Option<&SubComponent> {
         match self {
             None => None,
@@ -95,6 +105,7 @@ pub struct Field {
 }
 
 impl Field {
+    #[inline]
     pub fn component(&self, component: NonZeroUsize) -> Option<&Component> {
         self.components.get(component.get() - 1)
     }
@@ -102,6 +113,14 @@ impl Field {
     #[inline]
     pub fn source<'s>(&self, s: &'s str) -> &'s str {
         &s[self.range.clone()]
+    }
+
+    pub fn component_at_cursor(&self, cursor: usize) -> Option<(NonZeroUsize, &Component)> {
+        self.components
+            .iter()
+            .enumerate()
+            .find(|(_, component)| component.range.contains(&cursor))
+            .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
     }
 }
 
@@ -132,6 +151,7 @@ pub struct Segment {
 }
 
 impl Segment {
+    #[inline]
     pub fn field(&self, field: NonZeroUsize) -> Option<&Field> {
         self.fields.get(field.get() - 1)
     }
@@ -184,6 +204,16 @@ pub enum Segments {
     Many(Vec<Segment>),
 }
 
+impl Segment {
+    pub fn field_at_cursor(&self, cursor: usize) -> Option<(NonZeroUsize, &Field)> {
+        self.fields
+            .iter()
+            .enumerate()
+            .find(|(_, field)| field.range.contains(&cursor))
+            .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
+    }
+}
+
 impl Segments {
     fn nth(&self, n: usize) -> Option<&Segment> {
         match self {
@@ -197,6 +227,35 @@ impl Segments {
         match self {
             Segments::Single(_) => 1,
             Segments::Many(segs) => segs.len(),
+        }
+    }
+
+    pub fn field_at_cursor(&self, cursor: usize) -> Option<(NonZeroUsize, NonZeroUsize, &Field)> {
+        match self {
+            Segments::Single(seg) => seg
+                .field_at_cursor(cursor)
+                .map(|(n, f)| (NonZeroUsize::new(1).unwrap(), n, f)),
+            Segments::Many(segs) => segs.iter().enumerate().find_map(|(i, seg)| {
+                seg.field_at_cursor(cursor)
+                    .map(|(n, f)| (NonZeroUsize::new(i + 1).unwrap(), n, f))
+            }),
+        }
+    }
+
+    pub fn segment_at_cursor(&self, cursor: usize) -> Option<(NonZeroUsize, &Segment)> {
+        match self {
+            Segments::Single(seg) => {
+                if seg.range.contains(&cursor) {
+                    Some((NonZeroUsize::new(1).unwrap(), seg))
+                } else {
+                    None
+                }
+            }
+            Segments::Many(segs) => segs
+                .iter()
+                .enumerate()
+                .find(|(_, seg)| seg.range.contains(&cursor))
+                .map(|(i, seg)| (NonZeroUsize::new(i + 1).unwrap(), seg)),
         }
     }
 }
@@ -408,6 +467,13 @@ fn parse_message(s: Span) -> IResult<Span, Message> {
     ))
 }
 
+pub struct LocatedData<'s> {
+    pub segment: Option<(&'s str, NonZeroUsize, &'s Segment)>,
+    pub field: Option<(NonZeroUsize, &'s Field)>,
+    pub component: Option<(NonZeroUsize, &'s Component)>,
+    pub sub_component: Option<(NonZeroUsize, &'s SubComponent)>,
+}
+
 impl<'s> Message<'s> {
     pub fn parse(source: &'s str) -> Result<Message<'s>, nom::Err<nom::error::Error<Span<'s>>>> {
         let (_, message) = parse_message(Span::new(source))?;
@@ -434,6 +500,78 @@ impl<'s> Message<'s> {
             .get(segment)
             .map(|seg| seg.nth(n.get() - 1))
             .flatten()
+    }
+
+    pub fn get_field_source(
+        &'s self,
+        segment: (&str, NonZeroUsize),
+        field: NonZeroUsize,
+    ) -> Option<&'s str> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field).map(|f| f.source(self.source))
+    }
+
+    pub fn get_component_source(
+        &'s self,
+        segment: (&str, NonZeroUsize),
+        field: NonZeroUsize,
+        component: NonZeroUsize,
+    ) -> Option<&'s str> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
+            .component(component)
+            .map(|c| c.source(self.source))
+    }
+
+    pub fn get_sub_component_source(
+        &'s self,
+        segment: (&str, NonZeroUsize),
+        field: NonZeroUsize,
+        component: NonZeroUsize,
+        sub_component: NonZeroUsize,
+    ) -> Option<&'s str> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
+            .component(component)
+            .sub_component(sub_component)
+            .map(|s| s.source(self.source))
+    }
+
+    pub fn segment_at_cursor(
+        &'s self,
+        cursor: usize,
+    ) -> Option<(&'s str, NonZeroUsize, &'s Segment)> {
+        self.segments
+            .iter()
+            .find_map(|(id, segs)| segs.segment_at_cursor(cursor).map(|(n, seg)| (*id, n, seg)))
+    }
+
+    pub fn locate_cursor(&'s self, cursor: usize) -> LocatedData<'s> {
+        let segment = self.segment_at_cursor(cursor);
+        let field = segment
+            .map(|(_, _, segment)| segment.field_at_cursor(cursor))
+            .flatten();
+        let component = field
+            .map(|(_, field)| field.component_at_cursor(cursor))
+            .flatten();
+        let sub_component = component
+            .map(|(_, component)| component.sub_component_at_cursor(cursor))
+            .flatten();
+        LocatedData {
+            segment,
+            field,
+            component,
+            sub_component,
+        }
     }
 }
 
@@ -664,21 +802,62 @@ mod tests {
 
         assert!(message.has_segment("OBX"));
         assert_eq!(message.segment_count("OBX"), 14);
-        // let obx14_3_2 = message
-        //     .segment_n("OBX", NonZeroUsize::new(14).unwrap())
-        //     .field(NonZeroUsize::new(3).unwrap())
-        //     .component(NonZeroUsize::new(2).unwrap())
-        //     .expect("can get OBX14.3.2");
         assert_eq!(
             message
                 .segment_n("OBX", NonZeroUsize::new(14).unwrap())
-                .expect("can get OBX 14")
                 .field(NonZeroUsize::new(3).unwrap())
-                .expect("can get OBX14.3")
                 .component(NonZeroUsize::new(2).unwrap())
                 .expect("can get OBX14.3.2")
                 .source(message.source),
             "Basophils"
-        )
+        );
+        assert_eq!(
+            message
+                .get_component_source(
+                    ("OBX", NonZeroUsize::new(14).unwrap()),
+                    NonZeroUsize::new(3).unwrap(),
+                    NonZeroUsize::new(2).unwrap(),
+                )
+                .expect("can get component"),
+            "Basophils"
+        );
+    }
+
+    #[test]
+    fn can_locate_cursor() {
+        let cursor = 26;
+        let message = include_str!("../test_assets/sample_adt_a01.hl7")
+            .replace("\r\n", "\r")
+            .replace('\n', "\r");
+        let message = Message::parse(message.as_str()).expect("can parse message");
+
+        let (id, n, seg) = message
+            .segment_at_cursor(cursor)
+            .expect("can get segment at cursor");
+        assert_eq!(id, "MSH");
+        assert_eq!(n, NonZeroUsize::new(1).unwrap());
+
+        let (n, _field) = seg
+            .field_at_cursor(cursor)
+            .expect("can get field at cursor");
+        assert_eq!(n, NonZeroUsize::new(7).unwrap());
+
+        let cursor = 0x458;
+        let (id, n, seg) = message
+            .segment_at_cursor(cursor)
+            .expect("can get segment at cursor");
+        assert_eq!(id, "IN1");
+        assert_eq!(n, NonZeroUsize::new(1).unwrap());
+
+        let (n, field) = seg
+            .field_at_cursor(cursor)
+            .expect("can get field at cursor");
+        assert_eq!(n, NonZeroUsize::new(5).unwrap());
+
+        let (n, component) = field
+            .component_at_cursor(cursor)
+            .expect("can get component at cursor");
+        assert_eq!(n, NonZeroUsize::new(3).unwrap());
+        assert_eq!(component.source(message.source), "HOLLYWOOD");
     }
 }
