@@ -23,6 +23,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         let message = Message::parse(message.as_str()).expect("can parse message");
         b.iter(|| message.locate_cursor(black_box(0x458)))
     });
+
+    c.bench_function("parse timestamp", |b| {
+        b.iter(|| parse_time(black_box("20230312195905.1234-0700")).expect("can parse timestamp"))
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);
