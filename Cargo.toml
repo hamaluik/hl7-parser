@@ -8,6 +8,7 @@ edition = "2021"
 nom = "7"
 nom_locate = "4"
 thiserror = "1"
+time = "0.3"
 
 [dev-dependencies]
 criterion = "0.4"
