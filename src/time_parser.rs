@@ -1,4 +1,4 @@
-use crate::parser::Span;
+use crate::{parser::Span, TimeParseError};
 use nom::{
     bytes::complete::{tag, take_while_m_n},
     character::complete::one_of,
@@ -8,7 +8,16 @@ use nom::{
 };
 use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
-pub fn parse_time<'s>(s: &'s str) -> Result<OffsetDateTime, nom::Err<nom::error::Error<Span<'s>>>> {
+/// Parse an HL7 timestamp
+///
+/// Any missing components from the timestamp will be substituted with the first of that time
+/// period (for example, if the month is not provided, it will default to [time::Month::January],
+/// hour will default to `0`, offset will default to _UTC_)
+///
+/// # Arguments
+///
+/// * `s` - A string slice representing the HL7 timestamp (format: `YYYY[MM[DD[HH[MM[SS[.S[S[S[S]]]]]]]]][+/-ZZZZ]`)
+pub fn parse_time<'s>(s: &'s str) -> Result<OffsetDateTime, TimeParseError> {
     fn is_decimal_digit(c: char) -> bool {
         c.is_digit(10)
     }
@@ -26,16 +35,24 @@ pub fn parse_time<'s>(s: &'s str) -> Result<OffsetDateTime, nom::Err<nom::error:
     }
 
     let s = Span::new(s);
-    let (s, year) = digit4(s)?;
-    let (s, month) = opt(digit2)(s)?;
-    let (s, day) = opt(digit2)(s)?;
-    let (s, hour) = opt(digit2)(s)?;
-    let (s, minute) = opt(digit2)(s)?;
-    let (s, second) = opt(digit2)(s)?;
-    let (s, second_fracs) = opt(preceded(tag("."), take_while_m_n(1, 4, is_decimal_digit)))(s)?;
-    let (s, offset_dir) = opt(one_of("+-"))(s)?;
-    let (s, offset_hours) = opt(digit2)(s)?;
-    let (_, offset_minutes) = opt(digit2)(s)?;
+    let (s, year) = digit4(s).map_err(|_| TimeParseError::ParsingFailed("year"))?;
+    let (s, month) = opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("month"))?;
+    let (s, day) = opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("day"))?;
+    let (s, hour) = opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("hour"))?;
+    let (s, minute) = opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("minute"))?;
+    let (s, second) = opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("second"))?;
+    let (s, second_fracs) = opt(preceded(tag("."), take_while_m_n(1, 4, is_decimal_digit)))(s)
+        .map_err(|_: nom::Err<nom::error::Error<Span<'s>>>| {
+            TimeParseError::ParsingFailed("fractional seconds")
+        })?;
+    let (s, offset_dir) =
+        opt(one_of("+-"))(s).map_err(|_: nom::Err<nom::error::Error<Span<'s>>>| {
+            TimeParseError::ParsingFailed("offset direction")
+        })?;
+    let (s, offset_hours) =
+        opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("offset hours"))?;
+    let (_, offset_minutes) =
+        opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("offset minutes"))?;
 
     let month = match month.unwrap_or(1) {
         1 => Month::January,
@@ -50,11 +67,11 @@ pub fn parse_time<'s>(s: &'s str) -> Result<OffsetDateTime, nom::Err<nom::error:
         10 => Month::October,
         11 => Month::November,
         12 => Month::December,
-        _ => todo!("bad month error"),
+        _ => return Err(TimeParseError::InvalidComponentRange("month")),
     };
     let day = day.unwrap_or(1);
-    let date =
-        Date::from_calendar_date(year as i32, month, day as u8).expect("TODO: date number error");
+    let date = Date::from_calendar_date(year as i32, month, day as u8)
+        .map_err(|e| TimeParseError::InvalidComponentRange(e.name()))?;
 
     let hour = hour.unwrap_or(0);
     let minute = minute.unwrap_or(0);
@@ -72,7 +89,7 @@ pub fn parse_time<'s>(s: &'s str) -> Result<OffsetDateTime, nom::Err<nom::error:
         .expect("can parse fractional seconds as number")
         * fracs_multiplier;
     let time = Time::from_hms_micro(hour as u8, minute as u8, second as u8, microseconds as u32)
-        .expect("TODO: time number error");
+        .map_err(|e| TimeParseError::InvalidComponentRange(e.name()))?;
 
     let offset_dir = match offset_dir.unwrap_or('+') {
         '-' => -1,
@@ -176,5 +193,6 @@ mod test {
     fn cant_parse_bad_timestamps() {
         assert!(parse_time("23").is_err());
         assert!(parse_time("abcd").is_err());
+        assert!(parse_time("20230230").is_err());
     }
 }

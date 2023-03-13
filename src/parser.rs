@@ -416,7 +416,7 @@ mod tests {
         assert_eq!(message.segment_count("OBX"), 14);
         assert_eq!(
             message
-                .segment_n("OBX", NonZeroUsize::new(14).unwrap())
+                .segment_n("OBX", 13)
                 .field(NonZeroUsize::new(3).unwrap())
                 .component(NonZeroUsize::new(2).unwrap())
                 .expect("can get OBX14.3.2")
@@ -426,7 +426,7 @@ mod tests {
         assert_eq!(
             message
                 .get_component_source(
-                    ("OBX", NonZeroUsize::new(14).unwrap()),
+                    ("OBX", 13),
                     NonZeroUsize::new(3).unwrap(),
                     NonZeroUsize::new(2).unwrap(),
                 )

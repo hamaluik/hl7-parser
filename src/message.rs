@@ -4,40 +4,55 @@ use crate::{
 };
 use std::{collections::HashMap, num::NonZeroUsize};
 
-#[derive(Debug, Clone)]
+/// A parsed message. The message structure is valid, but the contents may or may not be.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message<'s> {
+    /// The original source message, generally used to extract items using ranges
     pub source: &'s str,
+    /// The separators & encoding characters defined at the beginning of the MSH segment
     pub separators: Separators,
+    /// All the segments stored within the message
     pub segments: HashMap<&'s str, Segments>,
 }
 
+/// Results from locating a cursor within a message
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocatedData<'s> {
-    pub segment: Option<(&'s str, NonZeroUsize, &'s Segment)>,
+    /// The (segment ID, segment ID repeat # (0-based), and segment) containing the cursor
+    pub segment: Option<(&'s str, usize, &'s Segment)>,
+    /// The (1-based field ID, field) containing the cursor
     pub field: Option<(NonZeroUsize, &'s Field)>,
+    /// The (1-based component ID, component) containing the cursor
     pub component: Option<(NonZeroUsize, &'s Component)>,
+    /// The (1-based sub-component ID, sub-component) containing the cursor
     pub sub_component: Option<(NonZeroUsize, &'s SubComponent)>,
 }
 
 impl<'s> Message<'s> {
+    /// Parse a string to obtain the underlying message
     pub fn parse(source: &'s str) -> Result<Message<'s>, ParseError> {
         let (_, message) =
             crate::parser::parse_message(crate::parser::Span::new(source)).map_err(|e| {
                 if cfg!(debug_assertions) {
-                    eprintln!("parse error: {e:#?}");
+                    // TODO: better error messages
+                    eprintln!("Parse error: {e:#?}");
                 }
                 ParseError::Failed
             })?;
         Ok(message)
     }
 
+    /// Whether the message contains any of the given segment identifier (`MSH`, `PID`, `PV1`, etc)
     pub fn has_segment(&'s self, segment: &str) -> bool {
         self.segments.contains_key(segment)
     }
 
+    /// Access the first segment identified by `segment`
     pub fn segment(&'s self, segment: &str) -> Option<&'s Segment> {
-        self.segments.get(segment).map(|seg| seg.nth(0)).flatten()
+        self.segments.get(segment).map(|seg| seg.get(0)).flatten()
     }
 
+    /// Return the number of times segments identified by `segment` are present in the message
     pub fn segment_count(&'s self, segment: &str) -> usize {
         self.segments
             .get(segment)
@@ -45,16 +60,32 @@ impl<'s> Message<'s> {
             .unwrap_or_default()
     }
 
-    pub fn segment_n(&'s self, segment: &str, n: NonZeroUsize) -> Option<&'s Segment> {
-        self.segments
-            .get(segment)
-            .map(|seg| seg.nth(n.get() - 1))
-            .flatten()
+    /// Get the 0-based nth segment identified by `segment` (i.e., if there were two `OBX` segments
+    /// and you wanted the second one, call `message.segment_n("OBX", 1)`)
+    pub fn segment_n(&'s self, segment: &str, n: usize) -> Option<&'s Segment> {
+        self.segments.get(segment).map(|seg| seg.get(n)).flatten()
     }
 
+    /// Directly get the source (not yet decoded) for a given field, if it exists in the message. The
+    /// field is identified by the segment identifier, segment repeat identifier, and 1-based field
+    /// identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::Message;
+    /// # use std::num::NonZeroUsize;
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
+    ///     .replace("\r\n", "\r")
+    ///     .replace('\n', "\r");
+    /// let message = Message::parse(&message).expect("can parse message");
+    ///
+    /// let message_type = message.get_field_source(("MSH", 0), NonZeroUsize::new(9).unwrap());
+    /// assert_eq!(message_type.unwrap(), "ADT^A01");
+    /// ```
     pub fn get_field_source(
         &'s self,
-        segment: (&str, NonZeroUsize),
+        segment: (&str, usize),
         field: NonZeroUsize,
     ) -> Option<&'s str> {
         let Some(seg) = self.segment_n(segment.0, segment.1) else {
@@ -64,9 +95,29 @@ impl<'s> Message<'s> {
         seg.field(field).map(|f| f.source(self.source))
     }
 
+    /// Directly get the source (not yet decoded) for a given component, if it exists in the message. The
+    /// component is identified by the segment identifier, segment repeat identifier, 1-based field
+    /// identifier, and 1-based component identifier
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::Message;
+    /// # use std::num::NonZeroUsize;
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
+    ///     .replace("\r\n", "\r")
+    ///     .replace('\n', "\r");
+    /// let message = Message::parse(&message).expect("can parse message");
+    ///
+    /// let trigger_event = message.get_component_source(
+    ///     ("MSH", 0),
+    ///     NonZeroUsize::new(9).unwrap(),
+    ///     NonZeroUsize::new(2).unwrap());
+    /// assert_eq!(trigger_event.unwrap(), "A01");
+    /// ```
     pub fn get_component_source(
         &'s self,
-        segment: (&str, NonZeroUsize),
+        segment: (&str, usize),
         field: NonZeroUsize,
         component: NonZeroUsize,
     ) -> Option<&'s str> {
@@ -79,9 +130,30 @@ impl<'s> Message<'s> {
             .map(|c| c.source(self.source))
     }
 
+    /// Directly get the source (not yet decoded) for a given sub-component, if it exists in the message.
+    /// The component is identified by the segment identifier, segment repeat identifier, 1-based field
+    /// identifier, 1-based component identifier, and 1-based sub-component identifier
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::Message;
+    /// # use std::num::NonZeroUsize;
+    /// let message = include_str!("../test_assets/sample_oru_r01_generic.hl7")
+    ///     .replace("\r\n", "\r")
+    ///     .replace('\n', "\r");
+    /// let message = Message::parse(&message).expect("can parse message");
+    ///
+    /// let universal_id = message.get_sub_component_source(
+    ///     ("PID", 0),
+    ///     NonZeroUsize::new(3).unwrap(),
+    ///     NonZeroUsize::new(4).unwrap(),
+    ///     NonZeroUsize::new(2).unwrap());
+    /// assert_eq!(universal_id.unwrap(), "1.2.840.114398.1.100");
+    /// ```
     pub fn get_sub_component_source(
         &'s self,
-        segment: (&str, NonZeroUsize),
+        segment: (&str, usize),
         field: NonZeroUsize,
         component: NonZeroUsize,
         sub_component: NonZeroUsize,
@@ -96,15 +168,24 @@ impl<'s> Message<'s> {
             .map(|s| s.source(self.source))
     }
 
-    pub fn segment_at_cursor(
-        &'s self,
-        cursor: usize,
-    ) -> Option<(&'s str, NonZeroUsize, &'s Segment)> {
+    /// Locate a segment at the cursor position
+    ///
+    /// # Arguments
+    ///
+    /// * `cursor` - The cursor location (0-based character index of the original message)
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the HL7 segment identifier, 0-based segment repeat number and a
+    /// reference to the field. If the segment doesn't contain the cursor, returns `None`
+    pub fn segment_at_cursor(&'s self, cursor: usize) -> Option<(&'s str, usize, &'s Segment)> {
         self.segments
             .iter()
             .find_map(|(id, segs)| segs.segment_at_cursor(cursor).map(|(n, seg)| (*id, n, seg)))
     }
 
+    /// Deeply locate the cursor by returning the sub-component, component, field, and segment that
+    /// the cursor is located in (if any)
     pub fn locate_cursor(&'s self, cursor: usize) -> LocatedData<'s> {
         let segment = self.segment_at_cursor(cursor);
         let field = segment
@@ -141,7 +222,7 @@ mod test {
             .segment_at_cursor(cursor)
             .expect("can get segment at cursor");
         assert_eq!(id, "MSH");
-        assert_eq!(n, NonZeroUsize::new(1).unwrap());
+        assert_eq!(n, 0);
 
         let (n, _field) = seg
             .field_at_cursor(cursor)
@@ -153,7 +234,7 @@ mod test {
             .segment_at_cursor(cursor)
             .expect("can get segment at cursor");
         assert_eq!(id, "IN1");
-        assert_eq!(n, NonZeroUsize::new(1).unwrap());
+        assert_eq!(n, 0);
 
         let (n, field) = seg
             .field_at_cursor(cursor)

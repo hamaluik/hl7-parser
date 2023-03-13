@@ -1,12 +1,18 @@
 use crate::Field;
 use std::ops::Range;
 
+/// The separators for the message
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Separators {
+    /// The character that separates fields (default: `'|'`)
     pub field: char,
+    /// The character that separates components (default: `'^'`)
     pub component: char,
+    /// The character that indicates repeats (default: `'~'`)
     pub repeat: char,
+    /// The escape character (default: `'\'`)
     pub escape: char,
+    /// The character that separates sub-components (default: `'&'`)
     pub subcomponent: char,
 }
 
@@ -23,6 +29,18 @@ impl Default for Separators {
 }
 
 impl Separators {
+    /// Given an un-decoded source, will decode the string into its canonical form
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::Separators;
+    /// let separators = Separators::default();
+    /// assert_eq!(
+    ///     separators.decode(r#"Pierre DuRho\S\ne \T\ Cie"#).as_str(),
+    ///     r#"Pierre DuRho^ne & Cie"#
+    /// );
+    /// ```
     pub fn decode(&self, source: &str) -> String {
         let mut tmp = [0; 4];
         source
@@ -38,7 +56,7 @@ impl Separators {
 }
 
 #[derive(Debug)]
-pub struct MSH {
+pub(crate) struct MSH {
     pub range: Range<usize>,
     pub separators: Separators,
     pub fields: Vec<Field>,
@@ -51,10 +69,6 @@ mod test {
     #[test]
     fn can_decode_encoding_characters() {
         let separators = Separators::default();
-        assert_eq!(
-            separators.decode(r#"Pierre DuRho\S\ne \T\ Cie"#).as_str(),
-            r#"Pierre DuRho^ne & Cie"#
-        );
         assert_eq!(separators.decode(r#"\.br\\X0A\\X0D\"#).as_str(), "\r\n\r");
         assert_eq!(separators.decode(r#"\F\\R\\S\\T\\E\"#).as_str(), r#"|~^&\"#);
         assert_eq!(separators.decode(r#"\E\\F\\E\"#).as_str(), r#"\|\"#);
