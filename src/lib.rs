@@ -8,7 +8,8 @@ use nom::{
 };
 use nom_locate::{position, LocatedSpan};
 
-mod time;
+mod time_parser;
+pub use time_parser::*;
 
 pub type Span<'a> = LocatedSpan<&'a str>;
 
