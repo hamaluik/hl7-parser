@@ -1,8 +1,6 @@
 //! HL7v2 message parsing in Rust.
 //!
-//! Parses the structure of HL7v2 messages, but does not validate the
-//! correctness of the messages. Attempts to minimize allocations as
-//! much as is reasonable for increased speed.
+//! Parses the structure of HL7v2 messages, but does not validate the correctness of the messages.
 //!
 //! Parsing is centered around the [Message] type.
 //!
@@ -28,8 +26,8 @@
 //! ## Querying a Message
 //!
 //! ```
-//! # use hl7_parser::Message;
-//! # use std::num::NonZeroUsize;
+//! use hl7_parser::Message;
+//!
 //! let message = include_str!("../test_assets/sample_adt_a01.hl7")
 //!     .replace("\r\n", "\r")
 //!     .replace('\n', "\r");
