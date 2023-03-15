@@ -28,6 +28,32 @@ pub struct LocatedData<'s> {
     pub sub_component: Option<(NonZeroUsize, &'s SubComponent)>,
 }
 
+impl<'s> std::fmt::Display for LocatedData<'s> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(segment) = self.segment {
+            write!(f, "{}", segment.0)?;
+        } else {
+            return Ok(());
+        }
+        if let Some(field) = self.field {
+            write!(f, ".{}", field.0)?;
+        } else {
+            return Ok(());
+        }
+        if let Some(component) = self.component {
+            write!(f, ".{}", component.0)?;
+        } else {
+            return Ok(());
+        }
+        if let Some(sub_component) = self.sub_component {
+            write!(f, ".{}", sub_component.0)?;
+        } else {
+            return Ok(());
+        }
+        Ok(())
+    }
+}
+
 impl<'s> Message<'s> {
     /// Parse a string to obtain the underlying message
     pub fn parse(source: &'s str) -> Result<Message<'s>, ParseError> {
@@ -246,5 +272,17 @@ mod test {
             .expect("can get component at cursor");
         assert_eq!(n, NonZeroUsize::new(3).unwrap());
         assert_eq!(component.source(message.source), "HOLLYWOOD");
+    }
+
+    #[test]
+    fn can_display_hl7_path() {
+        let cursor = 0x458;
+        let message = include_str!("../test_assets/sample_adt_a01.hl7")
+            .replace("\r\n", "\r")
+            .replace('\n', "\r");
+        let message = Message::parse(message.as_str()).expect("can parse message");
+        let location = message.locate_cursor(cursor);
+        let location = format!("{location}");
+        assert_eq!(location, "IN1.5.3.1");
     }
 }
