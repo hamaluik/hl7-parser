@@ -1,16 +1,18 @@
 use super::*;
+use crate::error::VResult;
 use nom::{
     bytes::complete::{tag, take, take_till},
     character::complete::char,
+    error::{convert_error, VerboseError},
     multi::separated_list0,
-    IResult,
+    Finish,
 };
 use nom_locate::{position, LocatedSpan};
 use std::collections::HashMap;
 
 pub(crate) type Span<'a> = LocatedSpan<&'a str>;
 
-fn parse_separators(s: Span) -> IResult<Span, Separators> {
+fn parse_separators(s: Span) -> VResult<Span, Separators> {
     let (s, source_field) = take(1u8)(s)?;
     let (s, source_encoding) = take(4u8)(s)?;
 
@@ -34,8 +36,8 @@ fn parse_separators(s: Span) -> IResult<Span, Separators> {
     Ok((s, separators))
 }
 
-fn sub_component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, SubComponent> {
-    move |s: Span| -> IResult<Span, SubComponent> {
+fn sub_component_parser(separators: Separators) -> impl Fn(Span) -> VResult<Span, SubComponent> {
+    move |s: Span| -> VResult<Span, SubComponent> {
         let (s, position) = position(s)?;
         let (s, source) = take_till(|c| {
             c == separators.subcomponent
@@ -56,15 +58,15 @@ fn sub_component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span
 
 fn sub_components_parser(
     separators: Separators,
-) -> impl Fn(Span) -> IResult<Span, Vec<SubComponent>> {
-    move |s: Span| -> IResult<Span, Vec<SubComponent>> {
+) -> impl Fn(Span) -> VResult<Span, Vec<SubComponent>> {
+    move |s: Span| -> VResult<Span, Vec<SubComponent>> {
         let parse_sub_component = sub_component_parser(separators);
         separated_list0(char(separators.subcomponent), parse_sub_component)(s)
     }
 }
 
-fn component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Component> {
-    move |s: Span| -> IResult<Span, Component> {
+fn component_parser(separators: Separators) -> impl Fn(Span) -> VResult<Span, Component> {
+    move |s: Span| -> VResult<Span, Component> {
         let parse_sub_components = sub_components_parser(separators);
 
         let (s, start_pos) = position(s)?;
@@ -81,15 +83,15 @@ fn component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Co
     }
 }
 
-fn components_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Component>> {
-    move |s: Span| -> IResult<Span, Vec<Component>> {
+fn components_parser(separators: Separators) -> impl Fn(Span) -> VResult<Span, Vec<Component>> {
+    move |s: Span| -> VResult<Span, Vec<Component>> {
         let parse_component = component_parser(separators);
         separated_list0(char(separators.component), parse_component)(s)
     }
 }
 
-fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field> {
-    move |s: Span| -> IResult<Span, Field> {
+fn field_parser(separators: Separators) -> impl Fn(Span) -> VResult<Span, Field> {
+    move |s: Span| -> VResult<Span, Field> {
         let parse_components = components_parser(separators);
 
         let (s, start_pos) = position(s)?;
@@ -106,14 +108,14 @@ fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field>
     }
 }
 
-fn fields_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Field>> {
-    move |s: Span| -> IResult<Span, Vec<Field>> {
+fn fields_parser(separators: Separators) -> impl Fn(Span) -> VResult<Span, Vec<Field>> {
+    move |s: Span| -> VResult<Span, Vec<Field>> {
         let parse_field = field_parser(separators);
         separated_list0(char(separators.field), parse_field)(s)
     }
 }
 
-fn parse_msh(s: Span) -> IResult<Span, MSH> {
+fn parse_msh(s: Span) -> VResult<Span, MSH> {
     let (s, start_pos) = position(s)?;
 
     let (s, _) = tag("MSH")(s)?;
@@ -135,8 +137,8 @@ fn parse_msh(s: Span) -> IResult<Span, MSH> {
     ))
 }
 
-fn segment_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, (&str, Segment)> {
-    move |s: Span| -> IResult<Span, (&str, Segment)> {
+fn segment_parser(separators: Separators) -> impl Fn(Span) -> VResult<Span, (&str, Segment)> {
+    move |s: Span| -> VResult<Span, (&str, Segment)> {
         let (s, start_pos) = position(s)?;
 
         let (s, identifier) = take(3u8)(s)?;
@@ -159,7 +161,7 @@ fn segment_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, (&st
     }
 }
 
-pub(crate) fn parse_message(s: Span) -> IResult<Span, Message> {
+fn parse_message_inner(s: Span) -> VResult<Span, Message> {
     let source = s.fragment();
     let (s, msh) = parse_msh(s)?;
 
@@ -196,6 +198,20 @@ pub(crate) fn parse_message(s: Span) -> IResult<Span, Message> {
             segments,
         },
     ))
+}
+
+pub(crate) fn parse_message<'s>(src: &'s str) -> Result<Message<'s>, String> {
+    parse_message_inner(Span::new(src))
+        .finish()
+        .map(|(_, m)| m)
+        .map_err(|e| {
+            let errors = e
+                .errors
+                .into_iter()
+                .map(|(input, error)| (*input.fragment(), error))
+                .collect();
+            convert_error(src, VerboseError { errors })
+        })
 }
 
 #[cfg(test)]
@@ -433,5 +449,11 @@ mod tests {
                 .expect("can get component"),
             "Basophils"
         );
+    }
+
+    #[test]
+    fn cant_parse_gibberish() {
+        let msg = Message::parse("a sailer went to sea to sea to see what he could see see see");
+        assert!(msg.is_err(), "message: {msg:?}");
     }
 }

@@ -6,10 +6,8 @@ pub(crate) type VResult<I, O, E = nom::error::VerboseError<I>> = Result<(I, O), 
 #[derive(Debug, Error)]
 pub enum ParseError {
     /// The parsing failed for some reason, the reason isn't available.
-    ///
-    /// **TODO**: better errors!
-    #[error("Failed to parse. TODO: better error messages")]
-    Failed,
+    #[error("Failed to parse: {0}")]
+    Failed(String),
 }
 
 /// Errors that can occur during parsing timestamps

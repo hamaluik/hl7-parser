@@ -89,15 +89,7 @@ impl<'s> std::fmt::Display for LocatedData<'s> {
 impl<'s> Message<'s> {
     /// Parse a string to obtain the underlying message
     pub fn parse(source: &'s str) -> Result<Message<'s>, ParseError> {
-        let (_, message) =
-            crate::parser::parse_message(crate::parser::Span::new(source)).map_err(|e| {
-                if cfg!(debug_assertions) {
-                    // TODO: better error messages
-                    // eprintln!("Parse error: {e:#?}");
-                }
-                ParseError::Failed
-            })?;
-        Ok(message)
+        crate::parser::parse_message(source).map_err(|e| ParseError::Failed(e))
     }
 
     /// Whether the message contains any of the given segment identifier (`MSH`, `PID`, `PV1`, etc)
@@ -313,14 +305,7 @@ impl MessageBuf {
     /// Parse a string to obtain the underlying message
     pub fn parse<'s, S: ToString + 's>(source: S) -> Result<MessageBuf, ParseError> {
         let source = source.to_string();
-        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(&source))
-            .map_err(|e| {
-                if cfg!(debug_assertions) {
-                    // TODO: better error messages
-                    // eprintln!("Parse error: {e:#?}");
-                }
-                ParseError::Failed
-            })?;
+        let message = crate::parser::parse_message(&source).map_err(|e| ParseError::Failed(e))?;
         Ok(message.into())
     }
 
