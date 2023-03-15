@@ -12,6 +12,7 @@ time = "0.3"
 
 [dev-dependencies]
 criterion = "0.4"
+rust-hl7 = "0.5"
 
 [[bench]]
 name = "parse_benchmark"
