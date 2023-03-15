@@ -11,6 +11,15 @@ fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
+    c.bench_function("parse adt^a01 owned", |b| {
+        let message = include_str!("../test_assets/sample_adt_a01.hl7")
+            .replace("\r\n", "\r")
+            .replace('\n', "\r");
+        b.iter(|| {
+            MessageBuf::parse(black_box(message.clone())).expect("can parse message");
+        })
+    });
+
     c.bench_function("decode encoded sequences", |b| {
         let separators = Separators::default();
         b.iter(|| separators.decode(black_box(r#"\F\\R\\S\\T\\E\"#)))
