@@ -93,7 +93,7 @@ impl<'s> Message<'s> {
             crate::parser::parse_message(crate::parser::Span::new(source)).map_err(|e| {
                 if cfg!(debug_assertions) {
                     // TODO: better error messages
-                    eprintln!("Parse error: {e:#?}");
+                    // eprintln!("Parse error: {e:#?}");
                 }
                 ParseError::Failed
             })?;
@@ -317,7 +317,7 @@ impl MessageBuf {
             .map_err(|e| {
                 if cfg!(debug_assertions) {
                     // TODO: better error messages
-                    eprintln!("Parse error: {e:#?}");
+                    // eprintln!("Parse error: {e:#?}");
                 }
                 ParseError::Failed
             })?;
