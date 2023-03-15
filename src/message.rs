@@ -1,6 +1,6 @@
 use crate::{
-    Component, ComponentAccessor, Field, ParseError, Segment, Segments, Separators, SubComponent,
-    SubComponentAccessor,
+    Component, ComponentAccessor, Field, LocationQuery, ParseError, Segment, Segments, Separators,
+    SubComponent, SubComponentAccessor,
 };
 use std::{collections::HashMap, num::NonZeroUsize};
 
@@ -262,6 +262,51 @@ impl<'s> Message<'s> {
             sub_component,
         }
     }
+
+    /// Query the message for a given segment, field, component, or sub-comonent.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - a [LocationQuery] targeting you want to access
+    ///
+    /// # Returns
+    ///
+    /// * [Result::Err] if the location query couldn't be parsed
+    /// * [Result::Ok] if the item location query could be parsed message
+    ///   + [Option::Some] containing the item source if the queried item was found in the message
+    ///   + [Option::None] if the queried item was _not_ found in the message
+    /// message
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::Message;
+    /// # use std::num::NonZeroUsize;
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
+    ///     .replace("\r\n", "\r")
+    ///     .replace('\n', "\r");
+    /// let message = Message::parse(&message).expect("can parse message");
+    ///
+    /// let trigger_event = message.query("MSH.9.2").expect("can parse location query");
+    /// assert_eq!(trigger_event, Some("A01"));
+    /// ```
+    pub fn query<Q, QErr>(&'s self, query: Q) -> Result<Option<&'s str>, QErr>
+    where
+        Q: TryInto<LocationQuery, Error = QErr>,
+    {
+        let LocationQuery {
+            segment,
+            field,
+            component,
+            sub_component,
+        } = &query.try_into()?;
+        Ok(match (field, component, sub_component) {
+            (Some(f), Some(c), Some(s)) => self.get_sub_component_source((segment, 0), *f, *c, *s),
+            (Some(f), Some(c), _) => self.get_component_source((segment, 0), *f, *c),
+            (Some(f), _, _) => self.get_field_source((segment, 0), *f),
+            _ => self.segment(segment).map(|seg| seg.source(self.source)),
+        })
+    }
 }
 
 impl MessageBuf {
@@ -437,6 +482,52 @@ impl MessageBuf {
             component,
             sub_component,
         }
+    }
+
+    /// Query the message for a given segment, field, component, or sub-comonent.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - a [LocationQuery] targeting you want to access
+    ///
+    /// # Returns
+    ///
+    /// * [Result::Err] if the location query couldn't be parsed
+    /// * [Result::Ok] if the item location query could be parsed message
+    ///   + [Option::Some] containing the item source if the queried item was found in the message
+    ///   + [Option::None] if the queried item was _not_ found in the message
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::Message;
+    /// # use std::num::NonZeroUsize;
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
+    ///     .replace("\r\n", "\r")
+    ///     .replace('\n', "\r");
+    /// let message = Message::parse(&message).expect("can parse message");
+    ///
+    /// let trigger_event = message.query("MSH.9.2").expect("can parse location query");
+    /// assert_eq!(trigger_event, Some("A01"));
+    /// ```
+    pub fn query<Q, QErr>(&self, query: Q) -> Result<Option<&str>, QErr>
+    where
+        Q: TryInto<LocationQuery, Error = QErr>,
+    {
+        let LocationQuery {
+            segment,
+            field,
+            component,
+            sub_component,
+        } = &query.try_into()?;
+        Ok(match (field, component, sub_component) {
+            (Some(f), Some(c), Some(s)) => self.get_sub_component_source((segment, 0), *f, *c, *s),
+            (Some(f), Some(c), _) => self.get_component_source((segment, 0), *f, *c),
+            (Some(f), _, _) => self.get_field_source((segment, 0), *f),
+            _ => self
+                .segment(segment)
+                .map(|seg| seg.source(self.source.as_str())),
+        })
     }
 }
 

@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+pub(crate) type VResult<I, O, E = nom::error::VerboseError<I>> = Result<(I, O), nom::Err<E>>;
+
 /// Errors that can occur during parsing
 #[derive(Debug, Error)]
 pub enum ParseError {

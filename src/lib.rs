@@ -25,7 +25,23 @@
 //! assert_eq!(message_type.unwrap(), "ADT^A01");
 //! ```
 //!
+//! ## Querying a Message
+//!
+//! ```
+//! # use hl7_parser::Message;
+//! # use std::num::NonZeroUsize;
+//! let message = include_str!("../test_assets/sample_adt_a01.hl7")
+//!     .replace("\r\n", "\r")
+//!     .replace('\n', "\r");
+//! let message = Message::parse(&message).expect("can parse message");
+//!
+//! let trigger_event = message.query("MSH.9.2").expect("can parse location query");
+//! assert_eq!(trigger_event, Some("A01"));
+//! ```
+//!
 //! ## Locating the Cursor Within A Message
+//!
+//! (The cursor being the character index of some point within the buffer)
 //!
 //! ```
 //! use hl7_parser::Message;
@@ -81,6 +97,7 @@ mod field;
 mod header;
 mod message;
 mod parser;
+mod query;
 mod segment;
 mod sub_component;
 mod time_parser;
@@ -90,6 +107,7 @@ pub use error::*;
 pub use field::*;
 pub use header::*;
 pub use message::*;
+pub use query::*;
 pub use segment::*;
 pub use sub_component::*;
 pub use time_parser::*;
