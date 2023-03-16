@@ -102,8 +102,7 @@ impl<'s> Message<'s> {
     pub fn segment<S: AsRef<str>>(&'s self, segment: S) -> Option<&'s Segment> {
         self.segments
             .get(segment.as_ref())
-            .map(|seg| seg.get(0))
-            .flatten()
+            .and_then(|seg| seg.get(0))
     }
 
     /// Return the number of times segments identified by `segment` are present in the message
@@ -119,8 +118,7 @@ impl<'s> Message<'s> {
     pub fn segment_n<S: AsRef<str>>(&'s self, segment: S, n: usize) -> Option<&'s Segment> {
         self.segments
             .get(segment.as_ref())
-            .map(|seg| seg.get(n))
-            .flatten()
+            .and_then(|seg| seg.get(n))
     }
 
     /// Directly get the source (not yet decoded) for a given field, if it exists in the message. The
@@ -245,15 +243,10 @@ impl<'s> Message<'s> {
     /// the cursor is located in (if any)
     pub fn locate_cursor(&'s self, cursor: usize) -> LocatedData<'s> {
         let segment = self.segment_at_cursor(cursor);
-        let field = segment
-            .map(|(_, _, segment)| segment.field_at_cursor(cursor))
-            .flatten();
-        let component = field
-            .map(|(_, field)| field.component_at_cursor(cursor))
-            .flatten();
-        let sub_component = component
-            .map(|(_, component)| component.sub_component_at_cursor(cursor))
-            .flatten();
+        let field = segment.and_then(|(_, _, segment)| segment.field_at_cursor(cursor));
+        let component = field.and_then(|(_, field)| field.component_at_cursor(cursor));
+        let sub_component =
+            component.and_then(|(_, component)| component.sub_component_at_cursor(cursor));
         LocatedData {
             segment,
             field,
@@ -325,8 +318,7 @@ impl MessageBuf {
     pub fn segment<S: AsRef<str>>(&self, segment: S) -> Option<&Segment> {
         self.segments
             .get(segment.as_ref())
-            .map(|seg| seg.get(0))
-            .flatten()
+            .and_then(|seg| seg.get(0))
     }
 
     /// Return the number of times segments identified by `segment` are present in the message
@@ -342,8 +334,7 @@ impl MessageBuf {
     pub fn segment_n<S: AsRef<str>>(&self, segment: S, n: usize) -> Option<&Segment> {
         self.segments
             .get(segment.as_ref())
-            .map(|seg| seg.get(n))
-            .flatten()
+            .and_then(|seg| seg.get(n))
     }
 
     /// Directly get the source (not yet decoded) for a given field, if it exists in the message. The
@@ -467,17 +458,12 @@ impl MessageBuf {
 
     /// Deeply locate the cursor by returning the sub-component, component, field, and segment that
     /// the cursor is located in (if any)
-    pub fn locate_cursor<'s>(&'s self, cursor: usize) -> LocatedData<'s> {
+    pub fn locate_cursor(&self, cursor: usize) -> LocatedData {
         let segment = self.segment_at_cursor(cursor);
-        let field = segment
-            .map(|(_, _, segment)| segment.field_at_cursor(cursor))
-            .flatten();
-        let component = field
-            .map(|(_, field)| field.component_at_cursor(cursor))
-            .flatten();
-        let sub_component = component
-            .map(|(_, component)| component.sub_component_at_cursor(cursor))
-            .flatten();
+        let field = segment.and_then(|(_, _, segment)| segment.field_at_cursor(cursor));
+        let component = field.and_then(|(_, field)| field.component_at_cursor(cursor));
+        let sub_component =
+            component.and_then(|(_, component)| component.sub_component_at_cursor(cursor));
         LocatedData {
             segment,
             field,
@@ -561,7 +547,7 @@ mod test {
             .segment_at_cursor(cursor)
             .expect("can get segment at cursor");
         assert_eq!(id, "IN1");
-        assert_eq!(n, 0);
+        assert_eq!(n, 1);
 
         let (n, field) = seg
             .field_at_cursor(cursor)

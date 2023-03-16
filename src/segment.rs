@@ -1,6 +1,6 @@
 use std::{num::NonZeroUsize, ops::Range};
 
-use crate::{Field, MSH};
+use crate::{Field, Msh};
 
 /// Represents an HL7v2 segment
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,9 +84,9 @@ impl FieldAccessor for Option<&Segment> {
     }
 }
 
-impl From<MSH> for Segment {
-    fn from(msh: MSH) -> Self {
-        let MSH {
+impl From<Msh> for Segment {
+    fn from(msh: Msh) -> Self {
+        let Msh {
             range, mut fields, ..
         } = msh;
         fields.insert(

@@ -19,11 +19,11 @@ use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 /// * `s` - A string slice representing the HL7 timestamp (format: `YYYY[MM[DD[HH[MM[SS[.S[S[S[S]]]]]]]]][+/-ZZZZ]`)
 pub fn parse_time<'s>(s: &'s str) -> Result<OffsetDateTime, TimeParseError> {
     fn is_decimal_digit(c: char) -> bool {
-        c.is_digit(10)
+        c.is_ascii_digit()
     }
 
     fn from_digits(i: Span) -> Result<usize, std::num::ParseIntError> {
-        usize::from_str_radix(i.fragment(), 10)
+        i.fragment().parse::<usize>()
     }
 
     fn digit2(input: Span) -> IResult<Span, usize> {
@@ -85,7 +85,9 @@ pub fn parse_time<'s>(s: &'s str) -> Result<OffsetDateTime, TimeParseError> {
         4 => 100,
         _ => panic!("second_fracs.len() not in 1..=4"),
     };
-    let microseconds = usize::from_str_radix(second_fracs.fragment(), 10)
+    let microseconds = second_fracs
+        .fragment()
+        .parse::<usize>()
         .expect("can parse fractional seconds as number")
         * fracs_multiplier;
     let time = Time::from_hms_micro(hour as u8, minute as u8, second as u8, microseconds as u32)
@@ -122,7 +124,7 @@ mod test {
         assert_eq!(ts.day(), 12);
         assert_eq!(ts.hour(), 19);
         assert_eq!(ts.minute(), 59);
-        assert_eq!(ts.second(), 05);
+        assert_eq!(ts.second(), 5);
         assert_eq!(ts.microsecond(), 123_400);
         assert_eq!(ts.offset().whole_hours(), -7);
         assert_eq!(ts.offset().minutes_past_hour(), 0);
@@ -138,7 +140,7 @@ mod test {
         assert_eq!(ts.day(), 12);
         assert_eq!(ts.hour(), 19);
         assert_eq!(ts.minute(), 59);
-        assert_eq!(ts.second(), 05);
+        assert_eq!(ts.second(), 5);
         assert_eq!(ts.microsecond(), 123_400);
         assert!(ts.offset().is_utc());
     }
@@ -153,7 +155,7 @@ mod test {
         assert_eq!(ts.day(), 12);
         assert_eq!(ts.hour(), 19);
         assert_eq!(ts.minute(), 59);
-        assert_eq!(ts.second(), 05);
+        assert_eq!(ts.second(), 5);
         assert_eq!(ts.microsecond(), 0);
         assert!(ts.offset().is_utc());
     }
@@ -168,7 +170,7 @@ mod test {
         assert_eq!(ts.day(), 12);
         assert_eq!(ts.hour(), 19);
         assert_eq!(ts.minute(), 59);
-        assert_eq!(ts.second(), 05);
+        assert_eq!(ts.second(), 5);
         assert_eq!(ts.microsecond(), 0);
         assert_eq!(ts.offset().whole_hours(), -7);
         assert_eq!(ts.offset().minutes_past_hour(), 0);

@@ -57,7 +57,7 @@ impl Separators {
 }
 
 #[derive(Debug)]
-pub(crate) struct MSH {
+pub(crate) struct Msh {
     pub range: Range<usize>,
     pub separators: Separators,
     pub fields: Vec<Field>,

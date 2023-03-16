@@ -15,7 +15,7 @@ fn parse_separators(s: Span) -> IResult<Span, Separators> {
     let (s, source_encoding) = take(4u8)(s)?;
 
     let source_field = source_field.fragment();
-    let field = source_field.chars().nth(0).unwrap();
+    let field = source_field.chars().next().unwrap();
 
     let source_encoding = source_encoding.fragment();
     let mut ec = source_encoding.chars();
@@ -113,7 +113,7 @@ fn fields_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<F
     }
 }
 
-fn parse_msh(s: Span) -> IResult<Span, MSH> {
+fn parse_msh(s: Span) -> IResult<Span, Msh> {
     let (s, start_pos) = position(s)?;
 
     let (s, _) = tag("MSH")(s)?;
@@ -127,7 +127,7 @@ fn parse_msh(s: Span) -> IResult<Span, MSH> {
 
     Ok((
         s,
-        MSH {
+        Msh {
             range: start_pos.location_offset()..end_pos.location_offset(),
             separators,
             fields,

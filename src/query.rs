@@ -33,12 +33,12 @@ fn parse_segment_id(s: &str) -> VResult<&str, &str> {
 }
 
 fn is_digit_base_10(c: char) -> bool {
-    c.is_digit(10)
+    c.is_ascii_digit()
 }
 
 fn parse_nonzero_integer(s: &str) -> VResult<&str, NonZeroUsize> {
     let (_s, val) = preceded(one_of(".- "), take_while1(is_digit_base_10))(s)?;
-    let val = usize::from_str_radix(val, 10).map_err(|_| {
+    let val = val.parse::<usize>().map_err(|_| {
         nom::Err::Failure(VerboseError {
             errors: vec![(
                 s,
