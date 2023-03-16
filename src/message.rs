@@ -94,27 +94,33 @@ impl<'s> Message<'s> {
     }
 
     /// Whether the message contains any of the given segment identifier (`MSH`, `PID`, `PV1`, etc)
-    pub fn has_segment(&'s self, segment: &str) -> bool {
-        self.segments.contains_key(segment)
+    pub fn has_segment<S: AsRef<str>>(&'s self, segment: S) -> bool {
+        self.segments.contains_key(segment.as_ref())
     }
 
     /// Access the first segment identified by `segment`
-    pub fn segment(&'s self, segment: &str) -> Option<&'s Segment> {
-        self.segments.get(segment).map(|seg| seg.get(0)).flatten()
+    pub fn segment<S: AsRef<str>>(&'s self, segment: S) -> Option<&'s Segment> {
+        self.segments
+            .get(segment.as_ref())
+            .map(|seg| seg.get(0))
+            .flatten()
     }
 
     /// Return the number of times segments identified by `segment` are present in the message
-    pub fn segment_count(&'s self, segment: &str) -> usize {
+    pub fn segment_count<S: AsRef<str>>(&'s self, segment: S) -> usize {
         self.segments
-            .get(segment)
+            .get(segment.as_ref())
             .map(|seg| seg.count())
             .unwrap_or_default()
     }
 
     /// Get the 0-based nth segment identified by `segment` (i.e., if there were two `OBX` segments
     /// and you wanted the second one, call `message.segment_n("OBX", 1)`)
-    pub fn segment_n(&'s self, segment: &str, n: usize) -> Option<&'s Segment> {
-        self.segments.get(segment).map(|seg| seg.get(n)).flatten()
+    pub fn segment_n<S: AsRef<str>>(&'s self, segment: S, n: usize) -> Option<&'s Segment> {
+        self.segments
+            .get(segment.as_ref())
+            .map(|seg| seg.get(n))
+            .flatten()
     }
 
     /// Directly get the source (not yet decoded) for a given field, if it exists in the message. The
@@ -134,9 +140,9 @@ impl<'s> Message<'s> {
     /// let message_type = message.get_field_source(("MSH", 0), NonZeroUsize::new(9).unwrap());
     /// assert_eq!(message_type.unwrap(), "ADT^A01");
     /// ```
-    pub fn get_field_source(
+    pub fn get_field_source<S: AsRef<str>>(
         &'s self,
-        segment: (&str, usize),
+        segment: (S, usize),
         field: NonZeroUsize,
     ) -> Option<&'s str> {
         let Some(seg) = self.segment_n(segment.0, segment.1) else {
@@ -166,9 +172,9 @@ impl<'s> Message<'s> {
     ///     NonZeroUsize::new(2).unwrap());
     /// assert_eq!(trigger_event.unwrap(), "A01");
     /// ```
-    pub fn get_component_source(
+    pub fn get_component_source<S: AsRef<str>>(
         &'s self,
-        segment: (&str, usize),
+        segment: (S, usize),
         field: NonZeroUsize,
         component: NonZeroUsize,
     ) -> Option<&'s str> {
@@ -202,9 +208,9 @@ impl<'s> Message<'s> {
     ///     NonZeroUsize::new(2).unwrap());
     /// assert_eq!(universal_id.unwrap(), "1.2.840.114398.1.100");
     /// ```
-    pub fn get_sub_component_source(
+    pub fn get_sub_component_source<S: AsRef<str>>(
         &'s self,
-        segment: (&str, usize),
+        segment: (S, usize),
         field: NonZeroUsize,
         component: NonZeroUsize,
         sub_component: NonZeroUsize,
@@ -311,27 +317,33 @@ impl MessageBuf {
     }
 
     /// Whether the message contains any of the given segment identifier (`MSH`, `PID`, `PV1`, etc)
-    pub fn has_segment(&self, segment: &str) -> bool {
-        self.segments.contains_key(segment)
+    pub fn has_segment<S: AsRef<str>>(&self, segment: S) -> bool {
+        self.segments.contains_key(segment.as_ref())
     }
 
     /// Access the first segment identified by `segment`
-    pub fn segment(&self, segment: &str) -> Option<&Segment> {
-        self.segments.get(segment).map(|seg| seg.get(0)).flatten()
+    pub fn segment<S: AsRef<str>>(&self, segment: S) -> Option<&Segment> {
+        self.segments
+            .get(segment.as_ref())
+            .map(|seg| seg.get(0))
+            .flatten()
     }
 
     /// Return the number of times segments identified by `segment` are present in the message
-    pub fn segment_count(&self, segment: &str) -> usize {
+    pub fn segment_count<S: AsRef<str>>(&self, segment: S) -> usize {
         self.segments
-            .get(segment)
+            .get(segment.as_ref())
             .map(|seg| seg.count())
             .unwrap_or_default()
     }
 
     /// Get the 0-based nth segment identified by `segment` (i.e., if there were two `OBX` segments
     /// and you wanted the second one, call `message.segment_n("OBX", 1)`)
-    pub fn segment_n(&self, segment: &str, n: usize) -> Option<&Segment> {
-        self.segments.get(segment).map(|seg| seg.get(n)).flatten()
+    pub fn segment_n<S: AsRef<str>>(&self, segment: S, n: usize) -> Option<&Segment> {
+        self.segments
+            .get(segment.as_ref())
+            .map(|seg| seg.get(n))
+            .flatten()
     }
 
     /// Directly get the source (not yet decoded) for a given field, if it exists in the message. The
@@ -351,7 +363,11 @@ impl MessageBuf {
     /// let message_type = message.get_field_source(("MSH", 0), NonZeroUsize::new(9).unwrap());
     /// assert_eq!(message_type.unwrap(), "ADT^A01");
     /// ```
-    pub fn get_field_source(&self, segment: (&str, usize), field: NonZeroUsize) -> Option<&str> {
+    pub fn get_field_source<S: AsRef<str>>(
+        &self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+    ) -> Option<&str> {
         let Some(seg) = self.segment_n(segment.0, segment.1) else {
             return None;
         };
@@ -379,9 +395,9 @@ impl MessageBuf {
     ///     NonZeroUsize::new(2).unwrap());
     /// assert_eq!(trigger_event.unwrap(), "A01");
     /// ```
-    pub fn get_component_source(
+    pub fn get_component_source<S: AsRef<str>>(
         &self,
-        segment: (&str, usize),
+        segment: (S, usize),
         field: NonZeroUsize,
         component: NonZeroUsize,
     ) -> Option<&str> {
@@ -415,9 +431,9 @@ impl MessageBuf {
     ///     NonZeroUsize::new(2).unwrap());
     /// assert_eq!(universal_id.unwrap(), "1.2.840.114398.1.100");
     /// ```
-    pub fn get_sub_component_source(
+    pub fn get_sub_component_source<S: AsRef<str>>(
         &self,
-        segment: (&str, usize),
+        segment: (S, usize),
         field: NonZeroUsize,
         component: NonZeroUsize,
         sub_component: NonZeroUsize,

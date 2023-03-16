@@ -26,7 +26,7 @@ impl Segment {
     ///
     /// # Arguments
     ///
-    /// * `s` - A string slice representing the original message source that was parsed
+    /// * `message_source` - A string slice representing the original message source that was parsed
     ///
     /// # Examples
     ///
@@ -43,8 +43,8 @@ impl Segment {
     /// assert_eq!(segment.source(message.source), "PID|1|12345|12345^^^MIE&1.2.840.114398.1.100&ISO^MR||MOUSE^MINNIE^S||19240101|F|||123 MOUSEHOLE LN^^FORT WAYNE^IN^46808|||||||||||||||||||");
     /// ```
     #[inline]
-    pub fn source<'s>(&self, s: &'s str) -> &'s str {
-        &s[self.range.clone()]
+    pub fn source<'s>(&self, message_source: &'s str) -> &'s str {
+        &message_source[self.range.clone()]
     }
 
     /// Locate a field at the cursor position

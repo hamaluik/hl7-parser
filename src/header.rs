@@ -41,9 +41,10 @@ impl Separators {
     ///     r#"Pierre DuRho^ne & Cie"#
     /// );
     /// ```
-    pub fn decode(&self, source: &str) -> String {
+    pub fn decode<S: AsRef<str>>(&self, source: S) -> String {
         let mut tmp = [0; 4];
         source
+            .as_ref()
             .replace(r#"\F\"#, self.field.encode_utf8(&mut tmp))
             .replace(r#"\R\"#, self.repeat.encode_utf8(&mut tmp))
             .replace(r#"\S\"#, self.component.encode_utf8(&mut tmp))

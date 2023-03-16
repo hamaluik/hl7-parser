@@ -25,7 +25,7 @@ impl Component {
     ///
     /// # Arguments
     ///
-    /// * `s` - A string slice representing the original message source that was parsed
+    /// * `message_source` - A string slice representing the original message source that was parsed
     ///
     /// # Examples
     ///
@@ -44,8 +44,8 @@ impl Component {
     /// assert_eq!(component.source(message.source), "MIE&1.2.840.114398.1.100&ISO");
     /// ```
     #[inline]
-    pub fn source<'s>(&self, s: &'s str) -> &'s str {
-        &s[self.range.clone()]
+    pub fn source<'s>(&self, message_source: &'s str) -> &'s str {
+        &message_source[self.range.clone()]
     }
 
     /// Locate a sub-component at the cursor position

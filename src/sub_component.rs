@@ -12,7 +12,7 @@ impl SubComponent {
     ///
     /// # Arguments
     ///
-    /// * `s` - A string slice representing the original message source that was parsed
+    /// * `message_source` - A string slice representing the original message source that was parsed
     ///
     /// # Examples
     ///
@@ -32,7 +32,7 @@ impl SubComponent {
     /// assert_eq!(sub_component.source(message.source), "ISO");
     /// ```
     #[inline]
-    pub fn source<'s>(&self, s: &'s str) -> &'s str {
-        &s[self.range.clone()]
+    pub fn source<'s>(&self, message_source: &'s str) -> &'s str {
+        &message_source[self.range.clone()]
     }
 }

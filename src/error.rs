@@ -44,7 +44,7 @@ impl<'s> From<nom::Err<nom::error::Error<Span<'s>>>> for ParseError {
     }
 }
 
-/// Errors that can occur during parsing timestamps
+/// Errors that can occur when parsing timestamps
 #[derive(Debug, Error)]
 pub enum TimeParseError {
     /// The parsing failed for some reason parsing field `this.0`

@@ -25,7 +25,7 @@ impl Field {
     ///
     /// # Arguments
     ///
-    /// * `s` - A string slice representing the original message source that was parsed
+    /// * `message_source` - A string slice representing the original message source that was parsed
     ///
     /// # Examples
     ///
@@ -43,8 +43,8 @@ impl Field {
     /// assert_eq!(field.source(message.source), "12345^^^MIE&1.2.840.114398.1.100&ISO^MR");
     /// ```
     #[inline]
-    pub fn source<'s>(&self, s: &'s str) -> &'s str {
-        &s[self.range.clone()]
+    pub fn source<'s>(&self, message_source: &'s str) -> &'s str {
+        &message_source[self.range.clone()]
     }
 
     /// Locate a component at the cursor position
