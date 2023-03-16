@@ -1,4 +1,4 @@
-name: Test + Build Image
+name: CI
 
 on:
   push:
@@ -10,15 +10,28 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-build:
+  test:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-    - name: Set Timezone
-      run: sudo timedatectl set-timezone America/Edmonton
     - name: Setup toolchain
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
     - name: Run tests
       run: cargo test --verbose --all-features
-
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Setup toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+        components: "clippy, rustfmt"
+    - name: Check Formatting
+      run: cargo fmt --all -- --check
+    - name: Lint
+      run: cargo clippy --all-targets -- --deny warnings
