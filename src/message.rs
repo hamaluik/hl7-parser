@@ -89,11 +89,7 @@ impl<'s> std::fmt::Display for LocatedData<'s> {
 impl<'s> Message<'s> {
     /// Parse a string to obtain the underlying message
     pub fn parse(source: &'s str) -> Result<Message<'s>, ParseError> {
-        let (_, message) =
-            crate::parser::parse_message(crate::parser::Span::new(source)).map_err(|_e| {
-                // TODO: better error messages
-                ParseError::Failed
-            })?;
+        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(source))?;
         Ok(message)
     }
 
@@ -310,11 +306,7 @@ impl MessageBuf {
     /// Parse a string to obtain the underlying message
     pub fn parse<'s, S: ToString + 's>(source: S) -> Result<MessageBuf, ParseError> {
         let source = source.to_string();
-        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(&source))
-            .map_err(|_e| {
-                // TODO: better error messages
-                ParseError::Failed
-            })?;
+        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(&source))?;
         Ok(message.into())
     }
 
@@ -607,5 +599,24 @@ mod test {
         let message_direct = MessageBuf::parse(raw_message).expect("can parse message");
 
         assert_eq!(message_from, message_direct);
+    }
+
+    #[test]
+    fn has_a_not_terrible_error_message() {
+        assert_eq!(
+            Message::parse("MSH|^~\\&$")
+                .expect_err("Message parsing to fail")
+                .to_string()
+                .as_str(),
+            "Message parsing failed at position 8 (line 1 column 9): `$`"
+        );
+    }
+
+    #[test]
+    fn message_and_message_buf_have_the_same_errors() {
+        let err = Message::parse("MSH|^~\\&$").expect_err("Message parsing to fail");
+        let err_buf = MessageBuf::parse("MSH|^~\\&$").expect_err("Message parsing to fail");
+        assert_eq!(err, err_buf);
+        assert_eq!(err.to_string(), err_buf.to_string());
     }
 }
