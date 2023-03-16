@@ -65,7 +65,9 @@ impl Component {
         self.sub_components
             .iter()
             .enumerate()
-            .find(|(_, sub_component)| sub_component.range.contains(&cursor))
+            .find(|(_, sub_component)| {
+                sub_component.range.contains(&cursor) || sub_component.range.start == cursor
+            })
             .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
     }
 }

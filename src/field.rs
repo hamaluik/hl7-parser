@@ -64,7 +64,9 @@ impl Field {
         self.components
             .iter()
             .enumerate()
-            .find(|(_, component)| component.range.contains(&cursor))
+            .find(|(_, component)| {
+                component.range.contains(&cursor) || component.range.start == cursor
+            })
             .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
     }
 }

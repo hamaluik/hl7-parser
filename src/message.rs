@@ -90,11 +90,8 @@ impl<'s> Message<'s> {
     /// Parse a string to obtain the underlying message
     pub fn parse(source: &'s str) -> Result<Message<'s>, ParseError> {
         let (_, message) =
-            crate::parser::parse_message(crate::parser::Span::new(source)).map_err(|e| {
-                if cfg!(debug_assertions) {
-                    // TODO: better error messages
-                    // eprintln!("Parse error: {e:#?}");
-                }
+            crate::parser::parse_message(crate::parser::Span::new(source)).map_err(|_e| {
+                // TODO: better error messages
                 ParseError::Failed
             })?;
         Ok(message)
@@ -314,11 +311,8 @@ impl MessageBuf {
     pub fn parse<'s, S: ToString + 's>(source: S) -> Result<MessageBuf, ParseError> {
         let source = source.to_string();
         let (_, message) = crate::parser::parse_message(crate::parser::Span::new(&source))
-            .map_err(|e| {
-                if cfg!(debug_assertions) {
-                    // TODO: better error messages
-                    // eprintln!("Parse error: {e:#?}");
-                }
+            .map_err(|_e| {
+                // TODO: better error messages
                 ParseError::Failed
             })?;
         Ok(message.into())
@@ -571,6 +565,22 @@ mod test {
             .expect("can get component at cursor");
         assert_eq!(n, NonZeroUsize::new(3).unwrap());
         assert_eq!(component.source(message.source), "HOLLYWOOD");
+    }
+
+    #[test]
+    fn can_locate_cursor_at_empty_fields() {
+        let message = include_str!("../test_assets/sample_adt_a01.hl7")
+            .replace("\r\n", "\r")
+            .replace('\n', "\r");
+        let message = Message::parse(message.as_str()).expect("can parse message");
+        for field in message.segment("MSH").unwrap().fields.iter() {
+            eprintln!("Field: {field:?} source: {}", field.source(message.source));
+        }
+        let location = message.locate_cursor(19);
+        assert!(location.segment.is_some());
+        assert!(location.field.is_some());
+        assert!(location.component.is_none());
+        assert!(location.sub_component.is_none());
     }
 
     #[test]

@@ -64,7 +64,7 @@ impl Segment {
         self.fields
             .iter()
             .enumerate()
-            .find(|(_, field)| field.range.contains(&cursor))
+            .find(|(_, field)| field.range.contains(&cursor) || field.range.start == cursor)
             .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
     }
 }
