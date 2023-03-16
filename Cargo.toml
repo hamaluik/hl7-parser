@@ -14,5 +14,31 @@ time = "0.3"
 criterion = "0.4"
 
 [[bench]]
-name = "parse_benchmark"
+name = "parse"
 harness = false
+
+[[bench]]
+name = "parse_buf"
+harness = false
+
+[[bench]]
+name = "decode"
+harness = false
+
+[[bench]]
+name = "locate"
+harness = false
+
+[[bench]]
+name = "query"
+harness = false
+
+[[bench]]
+name = "timestamp"
+harness = false
+
+[profile.release]
+debug = true
+
+[profile.bench]
+debug = true

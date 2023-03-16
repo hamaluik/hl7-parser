@@ -174,18 +174,32 @@ pub(crate) fn parse_message(s: Span) -> IResult<Span, Message> {
     let parse_segment = segment_parser(separators);
     let (s, segs) = separated_list0(char('\r'), parse_segment)(s)?;
     for (seg_id, seg) in segs.into_iter() {
-        let seg2 = seg.clone();
-        segments
-            .entry(seg_id)
-            .and_modify(|entry| match entry {
+        if segments.contains_key(seg_id) {
+            let entry = segments.remove(seg_id).unwrap();
+            match entry {
                 Segments::Single(existing_seg) => {
-                    *entry = Segments::Many(vec![existing_seg.clone(), seg2])
+                    segments.insert(seg_id, Segments::Many(vec![existing_seg, seg]));
                 }
-                Segments::Many(segs) => {
-                    segs.push(seg2);
+                Segments::Many(mut segs) => {
+                    segs.push(seg);
+                    segments.insert(seg_id, Segments::Many(segs));
                 }
-            })
-            .or_insert_with(|| Segments::Single(seg));
+            }
+        } else {
+            segments.insert(seg_id, Segments::Single(seg));
+        }
+
+        // segments
+        //     .entry(seg_id)
+        //     .and_modify(|entry| match entry {
+        //         Segments::Single(existing_seg) => {
+        //             *entry = Segments::Many(vec![existing_seg.clone(), seg2])
+        //         }
+        //         Segments::Many(segs) => {
+        //             segs.push(seg2);
+        //         }
+        //     })
+        //     .or_insert_with(|| Segments::Single(seg));
     }
 
     Ok((
