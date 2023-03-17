@@ -74,6 +74,9 @@ impl<'s> std::fmt::Display for LocatedData<'s> {
         } else {
             return Ok(());
         }
+        if let Some(repeat) = self.repeat {
+            write!(f, "[{}]", repeat.0)?;
+        }
         if let Some(component) = self.component {
             write!(f, ".{}", component.0)?;
         } else {
@@ -286,6 +289,7 @@ impl<'s> Message<'s> {
     pub fn locate_cursor(&'s self, cursor: usize) -> LocatedData<'s> {
         let segment = self.segment_at_cursor(cursor);
         let field = segment.and_then(|(_, _, segment)| segment.field_at_cursor(cursor));
+        let multi_repeats = field.map(|(_, f)| f.repeats.len() > 1).unwrap_or_default();
         let repeat = field.and_then(|(_, field)| field.repeat_at_cursor(cursor));
         let component = repeat.and_then(|(_, repeat)| repeat.component_at_cursor(cursor));
         let sub_component =
@@ -293,7 +297,11 @@ impl<'s> Message<'s> {
         LocatedData {
             segment,
             field,
-            repeat,
+            repeat: if repeat.is_some() && multi_repeats {
+                repeat
+            } else {
+                None
+            },
             component,
             sub_component,
         }
@@ -672,6 +680,29 @@ mod test {
             .expect("can get component at cursor");
         assert_eq!(n, NonZeroUsize::new(3).unwrap());
         assert_eq!(component.source(message.source), "HOLLYWOOD");
+
+        let message = include_str!("../test_assets/sample_adt_a04.hl7")
+            .replace("\r\n", "\r")
+            .replace('\n', "\r");
+        let message = Message::parse(message.as_str()).expect("can parse message");
+        let cursor = 0x1cc;
+
+        let (id, n, seg) = message
+            .segment_at_cursor(cursor)
+            .expect("can get segment at cursor");
+        assert_eq!(id, "AL1");
+        assert_eq!(n, 0);
+
+        let (n, field) = seg
+            .field_at_cursor(cursor)
+            .expect("can get field at cursor");
+        assert_eq!(n, NonZeroUsize::new(5).unwrap());
+
+        let (n, repeat) = field
+            .repeat_at_cursor(cursor)
+            .expect("can get repeat at cursor");
+        assert_eq!(n.get(), 2);
+        assert_eq!(repeat.source(message.source), "RASH");
     }
 
     #[test]
@@ -700,6 +731,15 @@ mod test {
         let location = message.locate_cursor(cursor);
         let location = format!("{location}");
         assert_eq!(location, "IN1.5.3.1");
+
+        let cursor = 0x1cc;
+        let message = include_str!("../test_assets/sample_adt_a04.hl7")
+            .replace("\r\n", "\r")
+            .replace('\n', "\r");
+        let message = Message::parse(message.as_str()).expect("can parse message");
+        let location = message.locate_cursor(cursor);
+        let location = format!("{location}");
+        assert_eq!(location, "AL1.5[2].1.1");
     }
 
     #[test]

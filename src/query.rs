@@ -1,4 +1,4 @@
-use crate::VResult;
+use crate::{LocatedData, VResult};
 use nom::{
     bytes::complete::{tag, take_while1, take_while_m_n},
     character::complete::one_of,
@@ -326,8 +326,48 @@ impl TryFrom<String> for LocationQuery {
     }
 }
 
+impl<'l> From<LocatedData<'l>> for LocationQuery {
+    fn from(value: LocatedData) -> Self {
+        let LocatedData {
+            segment,
+            field,
+            repeat,
+            component,
+            sub_component,
+        } = value;
+        LocationQuery {
+            segment: segment.map(|(seg, _, _)| seg).unwrap_or("MSH").to_string(),
+            field: field.map(|(f, _)| f),
+            repeat: repeat.map(|(r, _)| r),
+            component: component.map(|(c, _)| c),
+            sub_component: sub_component.map(|(s, _)| s),
+        }
+    }
+}
+
+impl<'l> From<&LocatedData<'l>> for LocationQuery {
+    fn from(value: &LocatedData) -> Self {
+        let LocatedData {
+            segment,
+            field,
+            repeat,
+            component,
+            sub_component,
+        } = value;
+        LocationQuery {
+            segment: segment.map(|(seg, _, _)| seg).unwrap_or("MSH").to_string(),
+            field: field.map(|(f, _)| f),
+            repeat: repeat.map(|(r, _)| r),
+            component: component.map(|(c, _)| c),
+            sub_component: sub_component.map(|(s, _)| s),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use crate::Message;
+
     use super::*;
 
     #[test]
@@ -409,5 +449,18 @@ mod test {
     fn cant_parse_malformed_queries() {
         assert!(LocationQuery::from_str("😁SH123").is_err());
         assert!(LocationQuery::from_str("píd").is_err());
+    }
+
+    #[test]
+    fn can_parse_located_data_display() {
+        let message = include_str!("../test_assets/sample_adt_a04.hl7")
+            .replace("\r\n", "\r")
+            .replace('\n', "\r");
+        let message = Message::parse(message.as_str()).expect("can parse message");
+        let location = message.locate_cursor(0x1cc);
+        let query_direct = LocationQuery::from(&location);
+        let location = location.to_string();
+        let query_result = LocationQuery::new(location).expect("can parse location");
+        assert_eq!(query_direct, query_result);
     }
 }
