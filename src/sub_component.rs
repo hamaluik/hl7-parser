@@ -26,7 +26,8 @@ impl SubComponent {
     ///
     /// let segment = message.segment("PID").expect("can get PID segment");
     /// let field = segment.field(NonZeroUsize::new(3).unwrap()).expect("can get field 3");
-    /// let component = field.component(NonZeroUsize::new(4).unwrap()).expect("can get component 4");
+    /// let repeat = field.repeat(NonZeroUsize::new(1).unwrap()).expect("can get repeat 1");
+    /// let component = repeat.component(NonZeroUsize::new(4).unwrap()).expect("can get component 4");
     /// let sub_component = component.sub_component(NonZeroUsize::new(3).unwrap()).expect("can get sub-component 3");
     ///
     /// assert_eq!(sub_component.source(message.source), "ISO");

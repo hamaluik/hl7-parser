@@ -104,14 +104,14 @@ impl From<Msh> for Segment {
             0,
             Field {
                 range: 3..4,
-                components: Vec::with_capacity(0),
+                repeats: Vec::with_capacity(0),
             },
         );
         fields.insert(
             1,
             Field {
                 range: 4..8,
-                components: Vec::with_capacity(0),
+                repeats: Vec::with_capacity(0),
             },
         );
         Segment { range, fields }

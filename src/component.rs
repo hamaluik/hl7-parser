@@ -42,7 +42,8 @@ impl Component {
     ///
     /// let segment = message.segment("PID").expect("can get PID segment");
     /// let field = segment.field(NonZeroUsize::new(3).unwrap()).expect("can get field 3");
-    /// let component = field.component(NonZeroUsize::new(4).unwrap()).expect("can get component 4");
+    /// let repeat = field.repeat(NonZeroUsize::new(1).unwrap()).expect("can get repeat 1");
+    /// let component = repeat.component(NonZeroUsize::new(4).unwrap()).expect("can get component 4");
     ///
     /// assert_eq!(component.source(message.source), "MIE&1.2.840.114398.1.100&ISO");
     /// ```

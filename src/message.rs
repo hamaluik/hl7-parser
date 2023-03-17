@@ -1,6 +1,6 @@
 use crate::{
-    Component, ComponentAccessor, Field, LocationQuery, ParseError, Segment, Segments, Separators,
-    SubComponent, SubComponentAccessor,
+    Component, ComponentAccessor, Field, LocationQuery, ParseError, Repeat, RepeatAccessor,
+    Segment, Segments, Separators, SubComponent, SubComponentAccessor,
 };
 use std::{collections::HashMap, num::NonZeroUsize};
 
@@ -54,6 +54,8 @@ pub struct LocatedData<'s> {
     pub segment: Option<(&'s str, usize, &'s Segment)>,
     /// The (1-based field ID, field) containing the cursor
     pub field: Option<(NonZeroUsize, &'s Field)>,
+    /// The (1-based repeat ID, repeat) containing the cursor
+    pub repeat: Option<(NonZeroUsize, &'s Repeat)>,
     /// The (1-based component ID, component) containing the cursor
     pub component: Option<(NonZeroUsize, &'s Component)>,
     /// The (1-based sub-component ID, sub-component) containing the cursor
@@ -150,6 +152,40 @@ impl<'s> Message<'s> {
         seg.field(field).map(|f| f.source(self.source))
     }
 
+    /// Directly get the source (not yet decoded) for a given field and repeat, if it exists in the message. The
+    /// field is identified by the segment identifier, segment repeat identifier, 1-based field identifier, and the repeat identifier
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::Message;
+    /// # use std::num::NonZeroUsize;
+    /// let message = include_str!("../test_assets/sample_adt_a04.hl7")
+    ///     .replace("\r\n", "\r")
+    ///     .replace('\n', "\r");
+    /// let message = Message::parse(&message).expect("can parse message");
+    ///
+    /// let allergy_reaction_2 = message.get_repeat_source(
+    ///     ("AL1", 0),
+    ///     NonZeroUsize::new(5).unwrap(),
+    ///     NonZeroUsize::new(2).unwrap());
+    /// assert_eq!(allergy_reaction_2.unwrap(), "RASH");
+    /// ```
+    pub fn get_repeat_source<S: AsRef<str>>(
+        &'s self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+    ) -> Option<&'s str> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
+            .repeat(repeat)
+            .map(|r| r.source(self.source))
+    }
+
     /// Directly get the source (not yet decoded) for a given component, if it exists in the message. The
     /// component is identified by the segment identifier, segment repeat identifier, 1-based field
     /// identifier, and 1-based component identifier
@@ -167,6 +203,7 @@ impl<'s> Message<'s> {
     /// let trigger_event = message.get_component_source(
     ///     ("MSH", 0),
     ///     NonZeroUsize::new(9).unwrap(),
+    ///     NonZeroUsize::new(1).unwrap(),
     ///     NonZeroUsize::new(2).unwrap());
     /// assert_eq!(trigger_event.unwrap(), "A01");
     /// ```
@@ -174,6 +211,7 @@ impl<'s> Message<'s> {
         &'s self,
         segment: (S, usize),
         field: NonZeroUsize,
+        repeat: NonZeroUsize,
         component: NonZeroUsize,
     ) -> Option<&'s str> {
         let Some(seg) = self.segment_n(segment.0, segment.1) else {
@@ -181,6 +219,7 @@ impl<'s> Message<'s> {
         };
 
         seg.field(field)
+            .repeat(repeat)
             .component(component)
             .map(|c| c.source(self.source))
     }
@@ -202,6 +241,7 @@ impl<'s> Message<'s> {
     /// let universal_id = message.get_sub_component_source(
     ///     ("PID", 0),
     ///     NonZeroUsize::new(3).unwrap(),
+    ///     NonZeroUsize::new(1).unwrap(),
     ///     NonZeroUsize::new(4).unwrap(),
     ///     NonZeroUsize::new(2).unwrap());
     /// assert_eq!(universal_id.unwrap(), "1.2.840.114398.1.100");
@@ -210,6 +250,7 @@ impl<'s> Message<'s> {
         &'s self,
         segment: (S, usize),
         field: NonZeroUsize,
+        repeat: NonZeroUsize,
         component: NonZeroUsize,
         sub_component: NonZeroUsize,
     ) -> Option<&'s str> {
@@ -218,6 +259,7 @@ impl<'s> Message<'s> {
         };
 
         seg.field(field)
+            .repeat(repeat)
             .component(component)
             .sub_component(sub_component)
             .map(|s| s.source(self.source))
@@ -244,12 +286,14 @@ impl<'s> Message<'s> {
     pub fn locate_cursor(&'s self, cursor: usize) -> LocatedData<'s> {
         let segment = self.segment_at_cursor(cursor);
         let field = segment.and_then(|(_, _, segment)| segment.field_at_cursor(cursor));
-        let component = field.and_then(|(_, field)| field.component_at_cursor(cursor));
+        let repeat = field.and_then(|(_, field)| field.repeat_at_cursor(cursor));
+        let component = repeat.and_then(|(_, repeat)| repeat.component_at_cursor(cursor));
         let sub_component =
             component.and_then(|(_, component)| component.sub_component_at_cursor(cursor));
         LocatedData {
             segment,
             field,
+            repeat,
             component,
             sub_component,
         }
@@ -289,13 +333,24 @@ impl<'s> Message<'s> {
         let LocationQuery {
             segment,
             field,
+            repeat,
             component,
             sub_component,
-        } = &query.try_into()?;
-        Ok(match (field, component, sub_component) {
-            (Some(f), Some(c), Some(s)) => self.get_sub_component_source((segment, 0), *f, *c, *s),
-            (Some(f), Some(c), _) => self.get_component_source((segment, 0), *f, *c),
-            (Some(f), _, _) => self.get_field_source((segment, 0), *f),
+        } = query.try_into()?;
+
+        let repeat = if repeat.is_none() && component.is_some() || sub_component.is_some() {
+            Some(NonZeroUsize::new(1).unwrap())
+        } else {
+            repeat
+        };
+
+        Ok(match (field, repeat, component, sub_component) {
+            (Some(f), Some(r), Some(c), Some(s)) => {
+                self.get_sub_component_source((segment, 0), f, r, c, s)
+            }
+            (Some(f), Some(r), Some(c), _) => self.get_component_source((segment, 0), f, r, c),
+            (Some(f), Some(r), _, _) => self.get_repeat_source((segment, 0), f, r),
+            (Some(f), _, _, _) => self.get_field_source((segment, 0), f),
             _ => self.segment(segment).map(|seg| seg.source(self.source)),
         })
     }
@@ -366,6 +421,40 @@ impl MessageBuf {
         seg.field(field).map(|f| f.source(self.source.as_str()))
     }
 
+    /// Directly get the source (not yet decoded) for a given field and repeat, if it exists in the message. The
+    /// field is identified by the segment identifier, segment repeat identifier, 1-based field identifier, and the repeat identifier
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::Message;
+    /// # use std::num::NonZeroUsize;
+    /// let message = include_str!("../test_assets/sample_adt_a04.hl7")
+    ///     .replace("\r\n", "\r")
+    ///     .replace('\n', "\r");
+    /// let message = Message::parse(&message).expect("can parse message");
+    ///
+    /// let allergy_reaction_2 = message.get_repeat_source(
+    ///     ("AL1", 0),
+    ///     NonZeroUsize::new(5).unwrap(),
+    ///     NonZeroUsize::new(2).unwrap());
+    /// assert_eq!(allergy_reaction_2.unwrap(), "RASH");
+    /// ```
+    pub fn get_repeat_source<S: AsRef<str>>(
+        &self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+    ) -> Option<&str> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
+            .repeat(repeat)
+            .map(|r| r.source(self.source.as_str()))
+    }
+
     /// Directly get the source (not yet decoded) for a given component, if it exists in the message. The
     /// component is identified by the segment identifier, segment repeat identifier, 1-based field
     /// identifier, and 1-based component identifier
@@ -383,6 +472,7 @@ impl MessageBuf {
     /// let trigger_event = message.get_component_source(
     ///     ("MSH", 0),
     ///     NonZeroUsize::new(9).unwrap(),
+    ///     NonZeroUsize::new(1).unwrap(),
     ///     NonZeroUsize::new(2).unwrap());
     /// assert_eq!(trigger_event.unwrap(), "A01");
     /// ```
@@ -390,6 +480,7 @@ impl MessageBuf {
         &self,
         segment: (S, usize),
         field: NonZeroUsize,
+        repeat: NonZeroUsize,
         component: NonZeroUsize,
     ) -> Option<&str> {
         let Some(seg) = self.segment_n(segment.0, segment.1) else {
@@ -397,6 +488,7 @@ impl MessageBuf {
         };
 
         seg.field(field)
+            .repeat(repeat)
             .component(component)
             .map(|c| c.source(self.source.as_str()))
     }
@@ -418,6 +510,7 @@ impl MessageBuf {
     /// let universal_id = message.get_sub_component_source(
     ///     ("PID", 0),
     ///     NonZeroUsize::new(3).unwrap(),
+    ///     NonZeroUsize::new(1).unwrap(),
     ///     NonZeroUsize::new(4).unwrap(),
     ///     NonZeroUsize::new(2).unwrap());
     /// assert_eq!(universal_id.unwrap(), "1.2.840.114398.1.100");
@@ -426,6 +519,7 @@ impl MessageBuf {
         &self,
         segment: (S, usize),
         field: NonZeroUsize,
+        repeat: NonZeroUsize,
         component: NonZeroUsize,
         sub_component: NonZeroUsize,
     ) -> Option<&str> {
@@ -434,6 +528,7 @@ impl MessageBuf {
         };
 
         seg.field(field)
+            .repeat(repeat)
             .component(component)
             .sub_component(sub_component)
             .map(|s| s.source(self.source.as_str()))
@@ -461,12 +556,14 @@ impl MessageBuf {
     pub fn locate_cursor(&self, cursor: usize) -> LocatedData {
         let segment = self.segment_at_cursor(cursor);
         let field = segment.and_then(|(_, _, segment)| segment.field_at_cursor(cursor));
-        let component = field.and_then(|(_, field)| field.component_at_cursor(cursor));
+        let repeat = field.and_then(|(_, field)| field.repeat_at_cursor(cursor));
+        let component = repeat.and_then(|(_, repeat)| repeat.component_at_cursor(cursor));
         let sub_component =
             component.and_then(|(_, component)| component.sub_component_at_cursor(cursor));
         LocatedData {
             segment,
             field,
+            repeat,
             component,
             sub_component,
         }
@@ -505,13 +602,24 @@ impl MessageBuf {
         let LocationQuery {
             segment,
             field,
+            repeat,
             component,
             sub_component,
-        } = &query.try_into()?;
-        Ok(match (field, component, sub_component) {
-            (Some(f), Some(c), Some(s)) => self.get_sub_component_source((segment, 0), *f, *c, *s),
-            (Some(f), Some(c), _) => self.get_component_source((segment, 0), *f, *c),
-            (Some(f), _, _) => self.get_field_source((segment, 0), *f),
+        } = query.try_into()?;
+
+        let repeat = if repeat.is_none() && component.is_some() || sub_component.is_some() {
+            Some(NonZeroUsize::new(1).unwrap())
+        } else {
+            repeat
+        };
+
+        Ok(match (field, repeat, component, sub_component) {
+            (Some(f), Some(r), Some(c), Some(s)) => {
+                self.get_sub_component_source((segment, 0), f, r, c, s)
+            }
+            (Some(f), Some(r), Some(c), _) => self.get_component_source((segment, 0), f, r, c),
+            (Some(f), Some(r), _, _) => self.get_repeat_source((segment, 0), f, r),
+            (Some(f), _, _, _) => self.get_field_source((segment, 0), f),
             _ => self
                 .segment(segment)
                 .map(|seg| seg.source(self.source.as_str())),
@@ -554,7 +662,12 @@ mod test {
             .expect("can get field at cursor");
         assert_eq!(n, NonZeroUsize::new(5).unwrap());
 
-        let (n, component) = field
+        let (n, repeat) = field
+            .repeat_at_cursor(cursor)
+            .expect("can get repeat at cursor");
+        assert_eq!(n.get(), 1);
+
+        let (n, component) = repeat
             .component_at_cursor(cursor)
             .expect("can get component at cursor");
         assert_eq!(n, NonZeroUsize::new(3).unwrap());

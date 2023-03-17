@@ -2,13 +2,62 @@ use super::*;
 use nom::{
     bytes::complete::{tag, take, take_till},
     character::complete::char,
-    multi::separated_list0,
-    IResult,
+    error::{ErrorKind, ParseError},
+    Err, IResult, InputLength, Parser,
 };
 use nom_locate::{position, LocatedSpan};
 use std::collections::HashMap;
 
 pub(crate) type Span<'a> = LocatedSpan<&'a str>;
+
+/// More or less lifted from nom; added capacity allocation
+fn separated_list0_cap<I, O, O2, E, F, G>(
+    mut sep: G,
+    mut f: F,
+    cap: usize,
+) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
+where
+    I: Clone + InputLength,
+    F: Parser<I, O, E>,
+    G: Parser<I, O2, E>,
+    E: ParseError<I>,
+{
+    move |mut i: I| {
+        let mut res = Vec::with_capacity(cap);
+
+        match f.parse(i.clone()) {
+            Err(Err::Error(_)) => return Ok((i, res)),
+            Err(e) => return Err(e),
+            Ok((i1, o)) => {
+                res.push(o);
+                i = i1;
+            }
+        }
+
+        loop {
+            let len = i.input_len();
+            match sep.parse(i.clone()) {
+                Err(Err::Error(_)) => return Ok((i, res)),
+                Err(e) => return Err(e),
+                Ok((i1, _)) => {
+                    // infinite loop check: the parser must always consume
+                    if i1.input_len() == len {
+                        return Err(Err::Error(E::from_error_kind(i1, ErrorKind::SeparatedList)));
+                    }
+
+                    match f.parse(i1.clone()) {
+                        Err(Err::Error(_)) => return Ok((i, res)),
+                        Err(e) => return Err(e),
+                        Ok((i2, o)) => {
+                            res.push(o);
+                            i = i2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 fn parse_separators(s: Span) -> IResult<Span, Separators> {
     let (s, source_field) = take(1u8)(s)?;
@@ -38,10 +87,11 @@ fn sub_component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span
     move |s: Span| -> IResult<Span, SubComponent> {
         let (s, position) = position(s)?;
         let (s, source) = take_till(|c| {
-            c == separators.subcomponent
+            c == separators.field
                 || c == separators.component
-                || c == separators.field
                 || c == '\r'
+                || c == separators.repeat
+                || c == separators.subcomponent
         })(s)?;
 
         Ok((
@@ -59,7 +109,7 @@ fn sub_components_parser(
 ) -> impl Fn(Span) -> IResult<Span, Vec<SubComponent>> {
     move |s: Span| -> IResult<Span, Vec<SubComponent>> {
         let parse_sub_component = sub_component_parser(separators);
-        separated_list0(char(separators.subcomponent), parse_sub_component)(s)
+        separated_list0_cap(char(separators.subcomponent), parse_sub_component, 1)(s)
     }
 }
 
@@ -84,12 +134,12 @@ fn component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Co
 fn components_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Component>> {
     move |s: Span| -> IResult<Span, Vec<Component>> {
         let parse_component = component_parser(separators);
-        separated_list0(char(separators.component), parse_component)(s)
+        separated_list0_cap(char(separators.component), parse_component, 10)(s)
     }
 }
 
-fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field> {
-    move |s: Span| -> IResult<Span, Field> {
+fn repeat_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Repeat> {
+    move |s: Span| -> IResult<Span, Repeat> {
         let parse_components = components_parser(separators);
 
         let (s, start_pos) = position(s)?;
@@ -98,9 +148,34 @@ fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field>
 
         Ok((
             s,
-            Field {
+            Repeat {
                 range: start_pos.location_offset()..end_pos.location_offset(),
                 components,
+            },
+        ))
+    }
+}
+
+fn repeats_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Repeat>> {
+    move |s: Span| -> IResult<Span, Vec<Repeat>> {
+        let parse_repeat = repeat_parser(separators);
+        separated_list0_cap(char(separators.repeat), parse_repeat, 1)(s)
+    }
+}
+
+fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field> {
+    move |s: Span| -> IResult<Span, Field> {
+        let parse_repeats = repeats_parser(separators);
+
+        let (s, start_pos) = position(s)?;
+        let (s, repeats) = parse_repeats(s)?;
+        let (s, end_pos) = position(s)?;
+
+        Ok((
+            s,
+            Field {
+                range: start_pos.location_offset()..end_pos.location_offset(),
+                repeats,
             },
         ))
     }
@@ -109,7 +184,7 @@ fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field>
 fn fields_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Field>> {
     move |s: Span| -> IResult<Span, Vec<Field>> {
         let parse_field = field_parser(separators);
-        separated_list0(char(separators.field), parse_field)(s)
+        separated_list0_cap(char(separators.field), parse_field, 20)(s)
     }
 }
 
@@ -172,7 +247,7 @@ pub(crate) fn parse_message(s: Span) -> IResult<Span, Message> {
 
     let (s, _) = char('\r')(s)?;
     let parse_segment = segment_parser(separators);
-    let (s, segs) = separated_list0(char('\r'), parse_segment)(s)?;
+    let (s, segs) = separated_list0_cap(char('\r'), parse_segment, 10)(s)?;
     for (seg_id, seg) in segs.into_iter() {
         if segments.contains_key(seg_id) {
             let entry = segments.remove(seg_id).unwrap();
@@ -264,14 +339,22 @@ mod tests {
         assert_eq!(fields.len(), 2);
         assert_eq!(fields[0].source("abc|def^hij"), "abc");
         assert_eq!(fields[1].source("abc|def^hij"), "def^hij");
-        let c1 = fields[1]
-            .component(NonZeroUsize::new(1).unwrap())
-            .expect("can get component 1");
-        let c2 = fields[1]
-            .component(NonZeroUsize::new(2).unwrap())
-            .expect("can get component 2");
-        assert_eq!(c1.source("abc|def^hij"), "def");
-        assert_eq!(c2.source("abc|def^hij"), "hij");
+        assert_eq!(
+            fields[1]
+                .repeat(NonZeroUsize::new(1).unwrap())
+                .component(NonZeroUsize::new(1).unwrap())
+                .expect("can get component 1")
+                .source("abc|def^hij"),
+            "def"
+        );
+        assert_eq!(
+            fields[1]
+                .repeat(NonZeroUsize::new(1).unwrap())
+                .component(NonZeroUsize::new(2).unwrap())
+                .expect("can get component 2")
+                .source("abc|def^hij"),
+            "hij"
+        );
     }
 
     #[test]
@@ -420,6 +503,7 @@ mod tests {
             message
                 .segment_n("OBX", 13)
                 .field(NonZeroUsize::new(3).unwrap())
+                .repeat(NonZeroUsize::new(1).unwrap())
                 .component(NonZeroUsize::new(2).unwrap())
                 .expect("can get OBX14.3.2")
                 .source(message.source),
@@ -430,10 +514,29 @@ mod tests {
                 .get_component_source(
                     ("OBX", 13),
                     NonZeroUsize::new(3).unwrap(),
+                    NonZeroUsize::new(1).unwrap(),
                     NonZeroUsize::new(2).unwrap(),
                 )
                 .expect("can get component"),
             "Basophils"
+        );
+    }
+
+    #[test]
+    fn can_parse_repeats() {
+        let message = include_str!("../test_assets/sample_adt_a04.hl7")
+            .replace("\r\n", "\r")
+            .replace('\n', "\r");
+        let message = Message::parse(message.as_str()).expect("can parse message");
+
+        assert_eq!(
+            message
+                .segment("AL1")
+                .field(NonZeroUsize::new(5).unwrap())
+                .expect("AL1.5 exists")
+                .repeats
+                .len(),
+            2
         );
     }
 }

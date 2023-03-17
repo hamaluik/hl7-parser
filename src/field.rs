@@ -1,4 +1,4 @@
-use crate::Component;
+use crate::Repeat;
 use std::{
     num::NonZeroUsize,
     ops::{Index, Range},
@@ -9,19 +9,20 @@ use std::{
 pub struct Field {
     /// The range (in char indices) in the original message where the field is located
     pub range: Range<usize>,
-    /// The components found within the component
-    pub components: Vec<Component>,
+    /// The repeats found within the component. This will always be at least 1 element long, and
+    /// the vast majority of the time will only be 1 element long. However, in the case of field
+    /// repeats ("arrays", really), all of the repeat data will be stored here
+    pub repeats: Vec<Repeat>,
 }
 
 impl Field {
-    /// Access a component via the 1-based HL7 component index
+    /// Access a repeat via 1-based HL7 repeat index
     ///
     /// # Returns
     ///
-    /// A reference to the component
-    #[inline]
-    pub fn component(&self, component: NonZeroUsize) -> Option<&Component> {
-        self.components.get(component.get() - 1)
+    /// A reference to the repeat
+    pub fn repeat(&self, repeat: NonZeroUsize) -> Option<&Repeat> {
+        self.repeats.get(repeat.get() - 1)
     }
 
     /// Given the source for the original message, extract the (raw) string for this field
@@ -50,7 +51,7 @@ impl Field {
         &message_source[self.range.clone()]
     }
 
-    /// Locate a component at the cursor position
+    /// Locate a repeat at the cursor position
     ///
     /// # Arguments
     ///
@@ -58,41 +59,39 @@ impl Field {
     ///
     /// # Returns
     ///
-    /// A tuple containing the HL7 component index (1-based) and a reference to the component.
+    /// A tuple containing the HL7 repeat index (1-based) and a reference to the repeat.
     /// If the field doesn't contain the cursor, returns `None`
-    pub fn component_at_cursor(&self, cursor: usize) -> Option<(NonZeroUsize, &Component)> {
+    pub fn repeat_at_cursor(&self, cursor: usize) -> Option<(NonZeroUsize, &Repeat)> {
         if !self.range.contains(&cursor) {
             return None;
         }
-        self.components
+        self.repeats
             .iter()
             .enumerate()
-            .find(|(_, component)| {
-                component.range.contains(&cursor) || component.range.start == cursor
-            })
+            .find(|(_, repeat)| repeat.range.contains(&cursor) || repeat.range.start == cursor)
             .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
     }
 }
 
 impl<I: Into<usize>> Index<I> for &Field {
-    type Output = Component;
+    type Output = Repeat;
 
     fn index(&self, index: I) -> &Self::Output {
-        &self.components[index.into()]
+        &self.repeats[index.into()]
     }
 }
 
-/// A trait for accessing components on fields, to extend Option<&Field> with short-circuit access
-pub trait ComponentAccessor {
+/// A trait for accessing repeat on fields, to extend Option<&Field> with short-circuit access
+pub trait RepeatAccessor {
     /// Access the component given by 1-based indexing
-    fn component(&self, component: NonZeroUsize) -> Option<&Component>;
+    fn repeat(&self, repeat: NonZeroUsize) -> Option<&Repeat>;
 }
 
-impl ComponentAccessor for Option<&Field> {
-    fn component(&self, component: NonZeroUsize) -> Option<&Component> {
+impl RepeatAccessor for Option<&Field> {
+    fn repeat(&self, repeat: NonZeroUsize) -> Option<&Repeat> {
         match self {
             None => None,
-            Some(field) => field.component(component),
+            Some(field) => field.repeat(repeat),
         }
     }
 }

@@ -1,10 +1,11 @@
 use crate::VResult;
 use nom::{
-    bytes::complete::{take_while1, take_while_m_n},
+    bytes::complete::{tag, take_while1, take_while_m_n},
     character::complete::one_of,
     combinator::opt,
     error::{VerboseError, VerboseErrorKind},
-    sequence::preceded,
+    multi::many_m_n,
+    sequence::{delimited, preceded},
     Finish,
 };
 use std::num::NonZeroUsize;
@@ -18,6 +19,8 @@ pub struct LocationQuery {
     pub segment: String,
     /// The 1-based field ID to optionally query
     pub field: Option<NonZeroUsize>,
+    /// The 1-based repeat ID to optionally query
+    pub repeat: Option<NonZeroUsize>,
     /// The 1-based component ID to optionally query
     pub component: Option<NonZeroUsize>,
     /// The 1-based sub-component ID to optionally query
@@ -36,7 +39,7 @@ fn is_digit_base_10(c: char) -> bool {
     c.is_ascii_digit()
 }
 
-fn parse_nonzero_integer(s: &str) -> VResult<&str, NonZeroUsize> {
+fn preceeded_nonzero_integer(s: &str) -> VResult<&str, NonZeroUsize> {
     let (_s, val) = preceded(one_of(".- "), take_while1(is_digit_base_10))(s)?;
     let val = val.parse::<usize>().map_err(|_| {
         nom::Err::Failure(VerboseError {
@@ -55,11 +58,41 @@ fn parse_nonzero_integer(s: &str) -> VResult<&str, NonZeroUsize> {
     Ok((_s, val))
 }
 
+fn nonzero_integer(s: &str) -> VResult<&str, NonZeroUsize> {
+    let (_s, val) = take_while1(is_digit_base_10)(s)?;
+    let val = val.parse::<usize>().map_err(|_| {
+        nom::Err::Failure(VerboseError {
+            errors: vec![(
+                s,
+                VerboseErrorKind::Context("Failed to parse value as an integer"),
+            )],
+        })
+    })?;
+    let val = NonZeroUsize::new(val).ok_or_else(|| {
+        nom::Err::Failure(VerboseError {
+            errors: vec![(s, VerboseErrorKind::Context("Integer was 0"))],
+        })
+    })?;
+
+    Ok((_s, val))
+}
+
+fn nonzero_array_access(s: &str) -> VResult<&str, NonZeroUsize> {
+    delimited(tag("["), nonzero_integer, tag("]"))(s)
+}
+
 fn parse_query(s: &str) -> VResult<&str, LocationQuery> {
     let (s, segment) = parse_segment_id(s)?;
-    let (s, field) = opt(parse_nonzero_integer)(s)?;
-    let (s, component) = opt(parse_nonzero_integer)(s)?;
-    let (s, sub_component) = opt(parse_nonzero_integer)(s)?;
+    let (s, field) = opt(preceeded_nonzero_integer)(s)?;
+    let (s, repeat) = many_m_n(0, 1, nonzero_array_access)(s)?;
+    let repeat = Some(
+        repeat
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| NonZeroUsize::new(1).unwrap()),
+    );
+    let (s, component) = opt(preceeded_nonzero_integer)(s)?;
+    let (s, sub_component) = opt(preceeded_nonzero_integer)(s)?;
 
     let segment = segment.to_uppercase();
 
@@ -68,6 +101,7 @@ fn parse_query(s: &str) -> VResult<&str, LocationQuery> {
         LocationQuery {
             segment,
             field,
+            repeat,
             component,
             sub_component,
         },
@@ -88,11 +122,12 @@ impl FromStr for LocationQuery {
 impl LocationQuery {
     /// Create a new location query by attempting to parse a string query
     ///
-    /// Query is expected to be in the form of: `<SEGMENT ID>[<SEP><FIELD>][<SEP><COMPONENT>][<SEP><SUB-COMPONENT>]`
+    /// Query is expected to be in the form of: `<SEGMENT ID>[<SEP><FIELD>][\[<REPEAT>\]][<SEP><COMPONENT>][<SEP><SUB-COMPONENT>]`
     /// where:
     /// * `<SEGMENT ID>` is 3 alpha-numeric characters which will be normalized to uppercase
     /// * `<SEP>` is one of `.`, `-`, or ` ` (space)
     /// * `<FIELD>` is a non-zero integer specifying the field number
+    /// * `<REPEAT>` is a non-zero integer specifying the repeat number
     /// * `<COMPONENT>` is a non-zero integer specifying the component number
     /// * `<SUB-COMPONENT>` is a non-zero integer specifying the sub-component number
     ///
@@ -103,6 +138,15 @@ impl LocationQuery {
     /// let query = LocationQuery::new("MSH.9").expect("can parse query");
     /// assert_eq!(query.segment.as_str(), "MSH");
     /// assert_eq!(query.field.unwrap().get(), 9);
+    /// assert!(query.component.is_none());
+    /// ```
+    ///
+    /// ```
+    /// # use hl7_parser::LocationQuery;
+    /// let query = LocationQuery::new("AL1.5[3]").expect("can parse query");
+    /// assert_eq!(query.segment.as_str(), "AL1");
+    /// assert_eq!(query.field.unwrap().get(), 5);
+    /// assert_eq!(query.repeat.unwrap().get(), 3);
     /// assert!(query.component.is_none());
     /// ```
     ///
@@ -124,6 +168,7 @@ impl LocationQuery {
         LocationQuery {
             segment,
             field: None,
+            repeat: None,
             component: None,
             sub_component: None,
         }
@@ -140,6 +185,29 @@ impl LocationQuery {
         Ok(LocationQuery {
             segment,
             field: Some(field),
+            repeat: None,
+            component: None,
+            sub_component: None,
+        })
+    }
+
+    /// Create a location query for a segment, a field, and a repeat
+    pub fn new_field_repeat<S, U, UErr>(
+        segment: S,
+        field: U,
+        repeat: U,
+    ) -> Result<LocationQuery, UErr>
+    where
+        S: ToString,
+        U: TryInto<NonZeroUsize, Error = UErr>,
+    {
+        let segment = segment.to_string();
+        let field: NonZeroUsize = field.try_into()?;
+        let repeat: NonZeroUsize = repeat.try_into()?;
+        Ok(LocationQuery {
+            segment,
+            field: Some(field),
+            repeat: Some(repeat),
             component: None,
             sub_component: None,
         })
@@ -161,6 +229,31 @@ impl LocationQuery {
         Ok(LocationQuery {
             segment,
             field: Some(field),
+            repeat: None,
+            component: Some(component),
+            sub_component: None,
+        })
+    }
+
+    /// Create a location query for a segment, a field, a repeat, and a component
+    pub fn new_repeat_component<S, U, UErr>(
+        segment: S,
+        field: U,
+        repeat: U,
+        component: U,
+    ) -> Result<LocationQuery, UErr>
+    where
+        S: ToString,
+        U: TryInto<NonZeroUsize, Error = UErr>,
+    {
+        let segment = segment.to_string();
+        let field: NonZeroUsize = field.try_into()?;
+        let repeat: NonZeroUsize = repeat.try_into()?;
+        let component: NonZeroUsize = component.try_into()?;
+        Ok(LocationQuery {
+            segment,
+            field: Some(field),
+            repeat: Some(repeat),
             component: Some(component),
             sub_component: None,
         })
@@ -184,6 +277,33 @@ impl LocationQuery {
         Ok(LocationQuery {
             segment,
             field: Some(field),
+            repeat: None,
+            component: Some(component),
+            sub_component: Some(sub_component),
+        })
+    }
+
+    /// Create a location query for a segment, a field, a component, and a sub-component
+    pub fn new_repeat_sub_component<S, U, UErr>(
+        segment: S,
+        field: U,
+        repeat: U,
+        component: U,
+        sub_component: U,
+    ) -> Result<LocationQuery, UErr>
+    where
+        S: ToString,
+        U: TryInto<NonZeroUsize, Error = UErr>,
+    {
+        let segment = segment.to_string();
+        let field: NonZeroUsize = field.try_into()?;
+        let repeat: NonZeroUsize = repeat.try_into()?;
+        let component: NonZeroUsize = component.try_into()?;
+        let sub_component: NonZeroUsize = sub_component.try_into()?;
+        Ok(LocationQuery {
+            segment,
+            field: Some(field),
+            repeat: Some(repeat),
             component: Some(component),
             sub_component: Some(sub_component),
         })
@@ -239,6 +359,13 @@ mod test {
         let query = LocationQuery::from_str("pid").expect("can parse query");
         assert_eq!(query.segment.as_str(), "PID");
         assert!(query.field.is_none());
+        assert!(query.component.is_none());
+        assert!(query.sub_component.is_none());
+
+        let query = LocationQuery::from_str("MSH.1[2]").expect("can parse query");
+        assert_eq!(query.segment.as_str(), "MSH");
+        assert_eq!(query.field.unwrap().get(), 1);
+        assert_eq!(query.repeat.unwrap().get(), 2);
         assert!(query.component.is_none());
         assert!(query.sub_component.is_none());
     }
