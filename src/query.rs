@@ -12,7 +12,7 @@ use std::num::NonZeroUsize;
 use std::str::FromStr;
 
 /// A query for a particular piece of a message, to be used in
-/// [Message::query](crate::Message::query) (or [MessageBuf::query](crate::MessageBuf::query))
+/// [ParsedMessage::query](crate::ParsedMessage::query) (or [ParsedMessageOwned::query](crate::ParsedMessageOwned::query))
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocationQuery {
     /// The segment identifier to query
@@ -366,7 +366,7 @@ impl<'l> From<&LocatedData<'l>> for LocationQuery {
 
 #[cfg(test)]
 mod test {
-    use crate::Message;
+    use crate::ParsedMessage;
 
     use super::*;
 
@@ -456,7 +456,7 @@ mod test {
         let message = include_str!("../test_assets/sample_adt_a04.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = Message::parse(message.as_str()).expect("can parse message");
+        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
         let location = message.locate_cursor(0x1cc);
         let query_direct = LocationQuery::from(&location);
         let location = location.to_string();

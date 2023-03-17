@@ -9,7 +9,7 @@ pub(crate) type VResult<I, O, E = nom::error::VerboseError<I>> = Result<(I, O), 
 pub enum ParseError {
     /// The parsing failed for some reason
     #[error(
-        "Message parsing failed at position {position} (line {line} column {column}): `{fragment}`"
+        "ParsedMessage parsing failed at position {position} (line {line} column {column}): `{fragment}`"
     )]
     FailedToParse {
         position: usize,
@@ -18,7 +18,7 @@ pub enum ParseError {
         fragment: String,
     },
 
-    #[error("Message parsing failed because of incomplete input.{}", .0.map(|s| format!(" Need at least {s} more characters to continue.")).unwrap_or_default())]
+    #[error("ParsedMessage parsing failed because of incomplete input.{}", .0.map(|s| format!(" Need at least {s} more characters to continue.")).unwrap_or_default())]
     IncompleteInput(Option<usize>),
 }
 

@@ -234,7 +234,7 @@ fn segment_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, (&st
     }
 }
 
-pub(crate) fn parse_message(s: Span) -> IResult<Span, Message> {
+pub(crate) fn parse_message(s: Span) -> IResult<Span, ParsedMessage> {
     let source = s.fragment();
     let (s, msh) = parse_msh(s)?;
 
@@ -267,7 +267,7 @@ pub(crate) fn parse_message(s: Span) -> IResult<Span, Message> {
 
     Ok((
         s,
-        Message {
+        ParsedMessage {
             source,
             separators,
             segments,
@@ -473,7 +473,7 @@ mod tests {
         let message = include_str!("../test_assets/sample_adt_a01.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = Message::parse(&message).expect("can parse message");
+        let message = ParsedMessage::parse(&message).expect("can parse message");
 
         assert!(message.has_segment("EVN"));
         assert!(message.has_segment("PID"));
@@ -495,7 +495,7 @@ mod tests {
         let message = include_str!("../test_assets/sample_oru_r01_lab.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = Message::parse(message.as_str()).expect("can parse message");
+        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
 
         assert!(message.has_segment("OBX"));
         assert_eq!(message.segment_count("OBX"), 14);
@@ -527,7 +527,7 @@ mod tests {
         let message = include_str!("../test_assets/sample_adt_a04.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = Message::parse(message.as_str()).expect("can parse message");
+        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
 
         assert_eq!(
             message

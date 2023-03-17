@@ -6,7 +6,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         let message = include_str!("../test_assets/sample_adt_a01.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = Message::parse(message.as_str()).expect("can parse message");
+        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
         b.iter(|| message.locate_cursor(black_box(0x458)))
     });
 }

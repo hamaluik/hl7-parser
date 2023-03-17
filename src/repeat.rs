@@ -34,11 +34,11 @@ impl Repeat {
     ///
     /// ```
     /// # use std::num::NonZeroUsize;
-    /// # use hl7_parser::Message;
+    /// # use hl7_parser::ParsedMessage;
     /// let message = include_str!("../test_assets/sample_adt_a04.hl7")
     ///     .replace("\r\n", "\r")
     ///     .replace('\n', "\r");
-    /// let message = Message::parse(&message).expect("can parse message");
+    /// let message = ParsedMessage::parse(&message).expect("can parse message");
     ///
     /// let segment = message.segment("AL1").expect("can get AL1 segment");
     /// let field = segment.field(NonZeroUsize::new(5).unwrap()).expect("can get field 5");

@@ -35,11 +35,11 @@ impl Segment {
     ///
     /// ```
     /// # use std::num::NonZeroUsize;
-    /// # use hl7_parser::Message;
+    /// # use hl7_parser::ParsedMessage;
     /// let message = include_str!("../test_assets/sample_oru_r01_generic.hl7")
     ///     .replace("\r\n", "\r")
     ///     .replace('\n', "\r");
-    /// let message = Message::parse(&message).expect("can parse message");
+    /// let message = ParsedMessage::parse(&message).expect("can parse message");
     ///
     /// let segment = message.segment("PID").expect("can get PID segment");
     ///
