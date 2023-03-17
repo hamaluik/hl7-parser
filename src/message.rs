@@ -399,12 +399,12 @@ impl MessageBuf {
     /// # Examples
     ///
     /// ```
-    /// # use hl7_parser::Message;
+    /// # use hl7_parser::MessageBuf;
     /// # use std::num::NonZeroUsize;
     /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
     ///     .replace("\r\n", "\r")
     ///     .replace('\n', "\r");
-    /// let message = Message::parse(&message).expect("can parse message");
+    /// let message = MessageBuf::parse(message).expect("can parse message");
     ///
     /// let message_type = message.get_field_source(("MSH", 0), NonZeroUsize::new(9).unwrap());
     /// assert_eq!(message_type.unwrap(), "ADT^A01");
@@ -427,12 +427,12 @@ impl MessageBuf {
     /// # Examples
     ///
     /// ```
-    /// # use hl7_parser::Message;
+    /// # use hl7_parser::MessageBuf;
     /// # use std::num::NonZeroUsize;
     /// let message = include_str!("../test_assets/sample_adt_a04.hl7")
     ///     .replace("\r\n", "\r")
     ///     .replace('\n', "\r");
-    /// let message = Message::parse(&message).expect("can parse message");
+    /// let message = MessageBuf::parse(message).expect("can parse message");
     ///
     /// let allergy_reaction_2 = message.get_repeat_source(
     ///     ("AL1", 0),
@@ -462,12 +462,12 @@ impl MessageBuf {
     /// # Examples
     ///
     /// ```
-    /// # use hl7_parser::Message;
+    /// # use hl7_parser::MessageBuf;
     /// # use std::num::NonZeroUsize;
     /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
     ///     .replace("\r\n", "\r")
     ///     .replace('\n', "\r");
-    /// let message = Message::parse(&message).expect("can parse message");
+    /// let message = MessageBuf::parse(message).expect("can parse message");
     ///
     /// let trigger_event = message.get_component_source(
     ///     ("MSH", 0),
@@ -500,12 +500,12 @@ impl MessageBuf {
     /// # Examples
     ///
     /// ```
-    /// # use hl7_parser::Message;
+    /// # use hl7_parser::MessageBuf;
     /// # use std::num::NonZeroUsize;
     /// let message = include_str!("../test_assets/sample_oru_r01_generic.hl7")
     ///     .replace("\r\n", "\r")
     ///     .replace('\n', "\r");
-    /// let message = Message::parse(&message).expect("can parse message");
+    /// let message = MessageBuf::parse(message).expect("can parse message");
     ///
     /// let universal_id = message.get_sub_component_source(
     ///     ("PID", 0),
@@ -585,12 +585,12 @@ impl MessageBuf {
     /// # Examples
     ///
     /// ```
-    /// # use hl7_parser::Message;
+    /// # use hl7_parser::MessageBuf;
     /// # use std::num::NonZeroUsize;
     /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
     ///     .replace("\r\n", "\r")
     ///     .replace('\n', "\r");
-    /// let message = Message::parse(&message).expect("can parse message");
+    /// let message = MessageBuf::parse(message).expect("can parse message");
     ///
     /// let trigger_event = message.query("MSH.9.2").expect("can parse location query");
     /// assert_eq!(trigger_event, Some("A01"));
