@@ -1,4 +1,7 @@
-use std::{num::NonZeroUsize, ops::Range};
+use std::{
+    num::NonZeroUsize,
+    ops::{Index, Range},
+};
 
 use crate::{Field, Msh};
 
@@ -66,6 +69,14 @@ impl Segment {
             .enumerate()
             .find(|(_, field)| field.range.contains(&cursor) || field.range.start == cursor)
             .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
+    }
+}
+
+impl<I: Into<usize>> Index<I> for &Segment {
+    type Output = Field;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.fields[index.into()]
     }
 }
 

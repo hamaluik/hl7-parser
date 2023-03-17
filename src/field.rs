@@ -1,5 +1,8 @@
 use crate::Component;
-use std::{num::NonZeroUsize, ops::Range};
+use std::{
+    num::NonZeroUsize,
+    ops::{Index, Range},
+};
 
 /// Represents an HL7v2 field
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,6 +71,14 @@ impl Field {
                 component.range.contains(&cursor) || component.range.start == cursor
             })
             .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
+    }
+}
+
+impl<I: Into<usize>> Index<I> for &Field {
+    type Output = Component;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.components[index.into()]
     }
 }
 

@@ -1,5 +1,8 @@
 use crate::SubComponent;
-use std::{num::NonZeroUsize, ops::Range};
+use std::{
+    num::NonZeroUsize,
+    ops::{Index, Range},
+};
 
 /// Represents an HL7v2 sub-component
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,6 +72,14 @@ impl Component {
                 sub_component.range.contains(&cursor) || sub_component.range.start == cursor
             })
             .map(|(i, sc)| (NonZeroUsize::new(i + 1).unwrap(), sc))
+    }
+}
+
+impl<I: Into<usize>> Index<I> for &Component {
+    type Output = SubComponent;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.sub_components[index.into()]
     }
 }
 

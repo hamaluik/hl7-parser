@@ -188,18 +188,6 @@ pub(crate) fn parse_message(s: Span) -> IResult<Span, Message> {
         } else {
             segments.insert(seg_id, Segments::Single(seg));
         }
-
-        // segments
-        //     .entry(seg_id)
-        //     .and_modify(|entry| match entry {
-        //         Segments::Single(existing_seg) => {
-        //             *entry = Segments::Many(vec![existing_seg.clone(), seg2])
-        //         }
-        //         Segments::Many(segs) => {
-        //             segs.push(seg2);
-        //         }
-        //     })
-        //     .or_insert_with(|| Segments::Single(seg));
     }
 
     Ok((
