@@ -767,7 +767,8 @@ mod test {
     #[test]
     fn message_and_message_buf_have_the_same_errors() {
         let err = ParsedMessage::parse("MSH|^~\\&$").expect_err("ParsedMessage parsing to fail");
-        let err_buf = ParsedMessageOwned::parse("MSH|^~\\&$").expect_err("ParsedMessage parsing to fail");
+        let err_buf =
+            ParsedMessageOwned::parse("MSH|^~\\&$").expect_err("ParsedMessage parsing to fail");
         assert_eq!(err, err_buf);
         assert_eq!(err.to_string(), err_buf.to_string());
     }
