@@ -3,6 +3,11 @@ name = "hl7-parser"
 authors = ["Kenton Hamaluik <kenton@hamaluik.ca>"]
 version = "0.0.1"
 edition = "2021"
+description = "Parses the structure of HL7v2 messages, but does not validate the correctness of the messages."
+documentation = "https://docs.rs/hl7-parser"
+repository = "https://github.com/hamaluik/hl7-parser"
+readme = "README.md"
+license = "Apache-2.0"
 
 [dependencies]
 nom = "7"
