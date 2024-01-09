@@ -6,6 +6,7 @@ use std::{collections::HashMap, num::NonZeroUsize};
 
 /// A parsed message. The message structure is valid, but the contents may or may not be.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ParsedMessage<'s> {
     /// The original source message, generally used to extract items using ranges
     pub source: &'s str,
@@ -17,6 +18,7 @@ pub struct ParsedMessage<'s> {
 
 /// A parsed message that owns its string slice. The message structure is valid, but the contents may or may not be.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParsedMessageOwned {
     /// The original source message, generally used to extract items using ranges
     pub source: String,
@@ -49,6 +51,7 @@ impl<'s> From<ParsedMessage<'s>> for ParsedMessageOwned {
 
 /// Results from locating a cursor within a message
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct LocatedData<'s> {
     /// The (segment ID, segment ID repeat # (0-based), and segment) containing the cursor
     pub segment: Option<(&'s str, usize, &'s Segment)>,

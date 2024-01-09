@@ -6,6 +6,7 @@ pub(crate) type VResult<I, O, E = nom::error::VerboseError<I>> = Result<(I, O), 
 
 /// Errors that can occur during parsing
 #[derive(Debug, Error, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ParseError {
     /// The parsing failed for some reason
     #[error(
@@ -46,6 +47,7 @@ impl<'s> From<nom::Err<nom::error::Error<Span<'s>>>> for ParseError {
 
 /// Errors that can occur when parsing timestamps
 #[derive(Debug, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TimeParseError {
     /// The parsing failed for some reason parsing field `this.0`
     #[error("Failed to parse timestamp: parsing {0} failed.")]

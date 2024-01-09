@@ -3,6 +3,7 @@ use std::ops::Range;
 
 /// The separators for the message
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Separators {
     /// The character that separates fields (default: `'|'`)
     pub field: char,
@@ -57,6 +58,7 @@ impl Separators {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Msh {
     pub range: Range<usize>,
     pub separators: Separators,

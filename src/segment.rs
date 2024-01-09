@@ -7,6 +7,7 @@ use crate::{Field, Msh};
 
 /// Represents an HL7v2 segment
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Segment {
     /// The range (in char indices) in the original message where the segment is located
     pub range: Range<usize>,
@@ -121,6 +122,7 @@ impl From<Msh> for Segment {
 /// Wrapper around segments; HL7 messages can contain multiple segments of the same type
 /// (ex: ORU messages often contain multiple OBX segments)
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Segments {
     /// A single segment
     Single(Segment),

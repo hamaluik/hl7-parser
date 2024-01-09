@@ -2,6 +2,7 @@ use std::ops::Range;
 
 /// Represents an HL7v2 sub-component
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SubComponent {
     /// The range (in char indices) in the original message where the sub-component is located
     pub range: Range<usize>,

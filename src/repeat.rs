@@ -6,6 +6,7 @@ use std::{
 
 /// Represents an HL7v2 repeat of a repeat
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Repeat {
     /// The range (in char indices) in the original message where the repeat is located
     pub range: Range<usize>,
