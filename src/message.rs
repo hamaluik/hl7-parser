@@ -2,7 +2,7 @@ use crate::{
     Component, ComponentAccessor, Field, LocationQuery, ParseError, Repeat, RepeatAccessor,
     Segment, Segments, Separators, SubComponent, SubComponentAccessor,
 };
-use std::{collections::HashMap, num::NonZeroUsize};
+use std::{collections::HashMap, num::NonZeroUsize, ops::Range};
 
 /// A parsed message. The message structure is valid, but the contents may or may not be.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,7 +117,7 @@ impl<'s> ParsedMessage<'s> {
     pub fn segment_count<S: AsRef<str>>(&'s self, segment: S) -> usize {
         self.segments
             .get(segment.as_ref())
-            .map(|seg| seg.count())
+            .map(|seg| seg.len())
             .unwrap_or_default()
     }
 
@@ -127,6 +127,14 @@ impl<'s> ParsedMessage<'s> {
         self.segments
             .get(segment.as_ref())
             .and_then(|seg| seg.get(n))
+    }
+
+    /// Mutable access to the 0-based nth segment identified by `segment` (i.e., if there were two `OBX` Segments
+    /// and you wanted the second one, call `message.segment_n_mut("OBX", 1)`)
+    pub fn segment_n_mut<S: AsRef<str>>(&mut self, segment: S, n: usize) -> Option<&mut Segment> {
+        self.segments
+            .get_mut(segment.as_ref())
+            .and_then(|seg| seg.get_mut(n))
     }
 
     /// Directly get the source (not yet decoded) for a given field, if it exists in the message. The
@@ -156,6 +164,18 @@ impl<'s> ParsedMessage<'s> {
         };
 
         seg.field(field).map(|f| f.source(self.source))
+    }
+
+    pub fn get_field<S: AsRef<str>>(
+        &'s self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+    ) -> Option<&'s Field> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
     }
 
     /// Directly get the source (not yet decoded) for a given field and repeat, if it exists in the message. The
@@ -190,6 +210,19 @@ impl<'s> ParsedMessage<'s> {
         seg.field(field)
             .repeat(repeat)
             .map(|r| r.source(self.source))
+    }
+
+    pub fn get_repeat<S: AsRef<str>>(
+        &'s self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+    ) -> Option<&'s Repeat> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field).and_then(|f| f.repeat(repeat))
     }
 
     /// Directly get the source (not yet decoded) for a given component, if it exists in the message. The
@@ -228,6 +261,22 @@ impl<'s> ParsedMessage<'s> {
             .repeat(repeat)
             .component(component)
             .map(|c| c.source(self.source))
+    }
+
+    pub fn get_component<S: AsRef<str>>(
+        &'s self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+        component: NonZeroUsize,
+    ) -> Option<&'s Component> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
+            .and_then(|f| f.repeat(repeat))
+            .and_then(|r| r.component(component))
     }
 
     /// Directly get the source (not yet decoded) for a given sub-component, if it exists in the message.
@@ -269,6 +318,24 @@ impl<'s> ParsedMessage<'s> {
             .component(component)
             .sub_component(sub_component)
             .map(|s| s.source(self.source))
+    }
+
+    pub fn get_sub_component<S: AsRef<str>>(
+        &'s self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+        component: NonZeroUsize,
+        sub_component: NonZeroUsize,
+    ) -> Option<&'s SubComponent> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
+            .and_then(|f| f.repeat(repeat))
+            .and_then(|r| r.component(component))
+            .and_then(|c| c.sub_component(sub_component))
     }
 
     /// Locate a segment at the cursor position
@@ -334,10 +401,10 @@ impl<'s> ParsedMessage<'s> {
     ///     .replace('\n', "\r");
     /// let message = ParsedMessage::parse(&message).expect("can parse message");
     ///
-    /// let trigger_event = message.query("MSH.9.2").expect("can parse location query");
+    /// let trigger_event = message.query_value("MSH.9.2").expect("can parse location query");
     /// assert_eq!(trigger_event, Some("A01"));
     /// ```
-    pub fn query<Q, QErr>(&'s self, query: Q) -> Result<Option<&'s str>, QErr>
+    pub fn query_value<Q, QErr>(&'s self, query: Q) -> Result<Option<&'s str>, QErr>
     where
         Q: TryInto<LocationQuery, Error = QErr>,
     {
@@ -365,6 +432,39 @@ impl<'s> ParsedMessage<'s> {
             _ => self.segment(segment).map(|seg| seg.source(self.source)),
         })
     }
+
+    pub fn query<Q, QErr>(&self, query: Q) -> Result<Option<Range<usize>>, QErr>
+    where
+        Q: TryInto<LocationQuery, Error = QErr>,
+    {
+        let LocationQuery {
+            segment,
+            field,
+            repeat,
+            component,
+            sub_component,
+        } = query.try_into()?;
+
+        let repeat = if repeat.is_none() && component.is_some() || sub_component.is_some() {
+            Some(NonZeroUsize::new(1).unwrap())
+        } else {
+            repeat
+        };
+
+        Ok(match (field, repeat, component, sub_component) {
+            (Some(f), Some(r), Some(c), Some(s)) => self
+                .get_sub_component((segment, 0), f, r, c, s)
+                .map(|s| s.range.clone()),
+            (Some(f), Some(r), Some(c), _) => self
+                .get_component((segment, 0), f, r, c)
+                .map(|c| c.range.clone()),
+            (Some(f), Some(r), _, _) => {
+                self.get_repeat((segment, 0), f, r).map(|r| r.range.clone())
+            }
+            (Some(f), _, _, _) => self.get_field((segment, 0), f).map(|f| f.range.clone()),
+            _ => self.segment(segment).map(|seg| seg.range.clone()),
+        })
+    }
 }
 
 impl ParsedMessageOwned {
@@ -387,11 +487,18 @@ impl ParsedMessageOwned {
             .and_then(|seg| seg.get(0))
     }
 
+    /// Mutable access to the first segment identified by `segment`
+    pub fn segment_mut<S: AsRef<str>>(&mut self, segment: S) -> Option<&mut Segment> {
+        self.segments
+            .get_mut(segment.as_ref())
+            .and_then(|seg| seg.get_mut(0))
+    }
+
     /// Return the number of times segments identified by `segment` are present in the message
     pub fn segment_count<S: AsRef<str>>(&self, segment: S) -> usize {
         self.segments
             .get(segment.as_ref())
-            .map(|seg| seg.count())
+            .map(|seg| seg.len())
             .unwrap_or_default()
     }
 
@@ -401,6 +508,14 @@ impl ParsedMessageOwned {
         self.segments
             .get(segment.as_ref())
             .and_then(|seg| seg.get(n))
+    }
+
+    /// Mutable access to the 0-based nth segment identified by `segment` (i.e., if there were two `OBX` Segments
+    /// and you wanted the second one, call `message.segment_n_mut("OBX", 1)`)
+    pub fn segment_n_mut<S: AsRef<str>>(&mut self, segment: S, n: usize) -> Option<&mut Segment> {
+        self.segments
+            .get_mut(segment.as_ref())
+            .and_then(|seg| seg.get_mut(n))
     }
 
     /// Directly get the source (not yet decoded) for a given field, if it exists in the message. The
@@ -430,6 +545,30 @@ impl ParsedMessageOwned {
         };
 
         seg.field(field).map(|f| f.source(self.source.as_str()))
+    }
+
+    pub fn get_field<S: AsRef<str>>(
+        &self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+    ) -> Option<&Field> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
+    }
+
+    pub fn get_field_mut<S: AsRef<str>>(
+        &mut self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+    ) -> Option<&mut Field> {
+        let Some(seg) = self.segment_n_mut(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field_mut(field)
     }
 
     /// Directly get the source (not yet decoded) for a given field and repeat, if it exists in the message. The
@@ -464,6 +603,32 @@ impl ParsedMessageOwned {
         seg.field(field)
             .repeat(repeat)
             .map(|r| r.source(self.source.as_str()))
+    }
+
+    pub fn get_repeat<S: AsRef<str>>(
+        &self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+    ) -> Option<&Repeat> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field).and_then(|f| f.repeat(repeat))
+    }
+
+    pub fn get_repeat_mut<S: AsRef<str>>(
+        &mut self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+    ) -> Option<&mut Repeat> {
+        let Some(seg) = self.segment_n_mut(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field_mut(field).and_then(|f| f.repeat_mut(repeat))
     }
 
     /// Directly get the source (not yet decoded) for a given component, if it exists in the message. The
@@ -502,6 +667,38 @@ impl ParsedMessageOwned {
             .repeat(repeat)
             .component(component)
             .map(|c| c.source(self.source.as_str()))
+    }
+
+    pub fn get_component<S: AsRef<str>>(
+        &self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+        component: NonZeroUsize,
+    ) -> Option<&Component> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
+            .and_then(|f| f.repeat(repeat))
+            .and_then(|r| r.component(component))
+    }
+
+    pub fn get_component_mut<S: AsRef<str>>(
+        &mut self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+        component: NonZeroUsize,
+    ) -> Option<&mut Component> {
+        let Some(seg) = self.segment_n_mut(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field_mut(field)
+            .and_then(|f| f.repeat_mut(repeat))
+            .and_then(|r| r.component_mut(component))
     }
 
     /// Directly get the source (not yet decoded) for a given sub-component, if it exists in the message.
@@ -543,6 +740,42 @@ impl ParsedMessageOwned {
             .component(component)
             .sub_component(sub_component)
             .map(|s| s.source(self.source.as_str()))
+    }
+
+    pub fn get_sub_component<S: AsRef<str>>(
+        &self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+        component: NonZeroUsize,
+        sub_component: NonZeroUsize,
+    ) -> Option<&SubComponent> {
+        let Some(seg) = self.segment_n(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field(field)
+            .and_then(|f| f.repeat(repeat))
+            .and_then(|r| r.component(component))
+            .and_then(|c| c.sub_component(sub_component))
+    }
+
+    pub fn get_sub_component_mut<S: AsRef<str>>(
+        &mut self,
+        segment: (S, usize),
+        field: NonZeroUsize,
+        repeat: NonZeroUsize,
+        component: NonZeroUsize,
+        sub_component: NonZeroUsize,
+    ) -> Option<&mut SubComponent> {
+        let Some(seg) = self.segment_n_mut(segment.0, segment.1) else {
+            return None;
+        };
+
+        seg.field_mut(field)
+            .and_then(|f| f.repeat_mut(repeat))
+            .and_then(|r| r.component_mut(component))
+            .and_then(|c| c.sub_component_mut(sub_component))
     }
 
     /// Locate a segment at the cursor position
@@ -603,10 +836,10 @@ impl ParsedMessageOwned {
     ///     .replace('\n', "\r");
     /// let message = ParsedMessageOwned::parse(message).expect("can parse message");
     ///
-    /// let trigger_event = message.query("MSH.9.2").expect("can parse location query");
+    /// let trigger_event = message.query_value("MSH.9.2").expect("can parse location query");
     /// assert_eq!(trigger_event, Some("A01"));
     /// ```
-    pub fn query<Q, QErr>(&self, query: Q) -> Result<Option<&str>, QErr>
+    pub fn query_value<Q, QErr>(&self, query: Q) -> Result<Option<&str>, QErr>
     where
         Q: TryInto<LocationQuery, Error = QErr>,
     {
@@ -634,6 +867,39 @@ impl ParsedMessageOwned {
             _ => self
                 .segment(segment)
                 .map(|seg| seg.source(self.source.as_str())),
+        })
+    }
+
+    pub fn query<Q, QErr>(&self, query: Q) -> Result<Option<Range<usize>>, QErr>
+    where
+        Q: TryInto<LocationQuery, Error = QErr>,
+    {
+        let LocationQuery {
+            segment,
+            field,
+            repeat,
+            component,
+            sub_component,
+        } = query.try_into()?;
+
+        let repeat = if repeat.is_none() && component.is_some() || sub_component.is_some() {
+            Some(NonZeroUsize::new(1).unwrap())
+        } else {
+            repeat
+        };
+
+        Ok(match (field, repeat, component, sub_component) {
+            (Some(f), Some(r), Some(c), Some(s)) => self
+                .get_sub_component((segment, 0), f, r, c, s)
+                .map(|s| s.range.clone()),
+            (Some(f), Some(r), Some(c), _) => self
+                .get_component((segment, 0), f, r, c)
+                .map(|c| c.range.clone()),
+            (Some(f), Some(r), _, _) => {
+                self.get_repeat((segment, 0), f, r).map(|r| r.range.clone())
+            }
+            (Some(f), _, _, _) => self.get_field((segment, 0), f).map(|f| f.range.clone()),
+            _ => self.segment(segment).map(|seg| seg.range.clone()),
         })
     }
 }

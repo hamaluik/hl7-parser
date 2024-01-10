@@ -33,7 +33,7 @@
 //!     .replace('\n', "\r");
 //! let message = ParsedMessage::parse(&message).expect("can parse message");
 //!
-//! let trigger_event = message.query("MSH.9.2").expect("can parse location query");
+//! let trigger_event = message.query_value("MSH.9.2").expect("can parse location query");
 //! assert_eq!(trigger_event, Some("A01"));
 //! ```
 //!

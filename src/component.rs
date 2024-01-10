@@ -25,6 +25,16 @@ impl Component {
         self.sub_components.get(sub_component.get() - 1)
     }
 
+    /// Mutably access a sub-component via the 1-based HL7 sub-component index
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the sub-component
+    #[inline]
+    pub fn sub_component_mut(&mut self, sub_component: NonZeroUsize) -> Option<&mut SubComponent> {
+        self.sub_components.get_mut(sub_component.get() - 1)
+    }
+
     /// Given the source for the original message, extract the (raw) string for this component
     ///
     /// # Arguments
@@ -97,6 +107,22 @@ impl SubComponentAccessor for Option<&Component> {
         match self {
             None => None,
             Some(component) => component.sub_component(sub_component),
+        }
+    }
+}
+
+/// A trait for accessing sub-components on fields, to extend Option<&mut Component> with short-circuit access
+pub trait SubComponentAccessorMut {
+    /// Access the sub-component given by 1-based indexing
+    fn sub_component_mut(&mut self, sub_component: NonZeroUsize) -> Option<&mut SubComponent>;
+}
+
+impl SubComponentAccessorMut for Option<&mut Component> {
+    #[inline]
+    fn sub_component_mut(&mut self, sub_component: NonZeroUsize) -> Option<&mut SubComponent> {
+        match self {
+            None => None,
+            Some(component) => component.sub_component_mut(sub_component),
         }
     }
 }

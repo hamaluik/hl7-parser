@@ -119,6 +119,32 @@ impl FromStr for LocationQuery {
     }
 }
 
+impl std::fmt::Display for LocationQuery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let LocationQuery {
+            segment,
+            field,
+            repeat,
+            component,
+            sub_component,
+        } = self;
+        write!(f, "{}", segment)?;
+        if let Some(field) = field {
+            write!(f, ".{}", field)?;
+        }
+        if let Some(repeat) = repeat {
+            write!(f, "[{}]", repeat)?;
+        }
+        if let Some(component) = component {
+            write!(f, ".{}", component)?;
+        }
+        if let Some(sub_component) = sub_component {
+            write!(f, ".{}", sub_component)?;
+        }
+        Ok(())
+    }
+}
+
 impl LocationQuery {
     /// Create a new location query by attempting to parse a string query
     ///
@@ -307,6 +333,12 @@ impl LocationQuery {
             component: Some(component),
             sub_component: Some(sub_component),
         })
+    }
+}
+
+impl From<&LocationQuery> for LocationQuery {
+    fn from(value: &LocationQuery) -> Self {
+        value.clone()
     }
 }
 

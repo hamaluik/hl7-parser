@@ -22,8 +22,19 @@ impl Field {
     /// # Returns
     ///
     /// A reference to the repeat
+    #[inline]
     pub fn repeat(&self, repeat: NonZeroUsize) -> Option<&Repeat> {
         self.repeats.get(repeat.get() - 1)
+    }
+
+    /// Mutably access a repeat via 1-based HL7 repeat index
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the repeat
+    #[inline]
+    pub fn repeat_mut(&mut self, repeat: NonZeroUsize) -> Option<&mut Repeat> {
+        self.repeats.get_mut(repeat.get() - 1)
     }
 
     /// Given the source for the original message, extract the (raw) string for this field
@@ -89,10 +100,27 @@ pub trait RepeatAccessor {
 }
 
 impl RepeatAccessor for Option<&Field> {
+    #[inline]
     fn repeat(&self, repeat: NonZeroUsize) -> Option<&Repeat> {
         match self {
             None => None,
             Some(field) => field.repeat(repeat),
+        }
+    }
+}
+
+/// A trait for accessing repeat on fields, to extend Option<&mut Field> with short-circuit access
+pub trait RepeatAccessorMut {
+    /// Access the component given by 1-based indexing
+    fn repeat_mut(&mut self, repeat: NonZeroUsize) -> Option<&mut Repeat>;
+}
+
+impl RepeatAccessorMut for Option<&mut Field> {
+    #[inline]
+    fn repeat_mut(&mut self, repeat: NonZeroUsize) -> Option<&mut Repeat> {
+        match self {
+            None => None,
+            Some(field) => field.repeat_mut(repeat),
         }
     }
 }

@@ -250,18 +250,11 @@ pub(crate) fn parse_message(s: Span) -> IResult<Span, ParsedMessage> {
     let (s, segs) = separated_list0_cap(char('\r'), parse_segment, 10)(s)?;
     for (seg_id, seg) in segs.into_iter() {
         if segments.contains_key(seg_id) {
-            let entry = segments.remove(seg_id).unwrap();
-            match entry {
-                Segments::Single(existing_seg) => {
-                    segments.insert(seg_id, Segments::Many(vec![existing_seg, seg]));
-                }
-                Segments::Many(mut segs) => {
-                    segs.push(seg);
-                    segments.insert(seg_id, Segments::Many(segs));
-                }
-            }
+            let mut segs = segments.remove(seg_id).unwrap();
+            segs.push(seg);
+            segments.insert(seg_id, segs);
         } else {
-            segments.insert(seg_id, Segments::Single(seg));
+            segments.insert(seg_id, Segments(vec![seg]));
         }
     }
 

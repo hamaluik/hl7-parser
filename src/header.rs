@@ -55,6 +55,15 @@ impl Separators {
             .replace(r#"\X0D\"#, "\r")
             .replace(r#"\E\"#, self.escape.encode_utf8(&mut tmp))
     }
+
+    /// Utility to check if a character is a special character
+    pub fn is_special_char(&self, c: char) -> bool {
+        c == self.field
+            || c == self.component
+            || c == self.repeat
+            || c == self.escape
+            || c == self.subcomponent
+    }
 }
 
 #[derive(Debug)]

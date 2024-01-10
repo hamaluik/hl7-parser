@@ -25,6 +25,16 @@ impl Repeat {
         self.components.get(component.get() - 1)
     }
 
+    /// Mutably access a component via the 1-based HL7 component index
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the component
+    #[inline]
+    pub fn component_mut(&mut self, component: NonZeroUsize) -> Option<&mut Component> {
+        self.components.get_mut(component.get() - 1)
+    }
+
     /// Given the source for the original message, extract the (raw) string for this repeat
     ///
     /// # Arguments
@@ -91,10 +101,27 @@ pub trait ComponentAccessor {
 }
 
 impl ComponentAccessor for Option<&Repeat> {
+    #[inline]
     fn component(&self, component: NonZeroUsize) -> Option<&Component> {
         match self {
             None => None,
             Some(repeat) => repeat.component(component),
+        }
+    }
+}
+
+/// A trait for accessing components on fields, to extend Option<&mut Repeat> with short-circuit access
+pub trait ComponentAccessorMut {
+    /// Access the component given by 1-based indexing
+    fn component_mut(&mut self, component: NonZeroUsize) -> Option<&mut Component>;
+}
+
+impl ComponentAccessorMut for Option<&mut Repeat> {
+    #[inline]
+    fn component_mut(&mut self, component: NonZeroUsize) -> Option<&mut Component> {
+        match self {
+            None => None,
+            Some(repeat) => repeat.component_mut(component),
         }
     }
 }

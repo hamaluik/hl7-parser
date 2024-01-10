@@ -1,6 +1,6 @@
 use std::{
     num::NonZeroUsize,
-    ops::{Index, Range},
+    ops::{Deref, DerefMut, Index, Range},
 };
 
 use crate::{Field, Msh};
@@ -24,6 +24,16 @@ impl Segment {
     #[inline]
     pub fn field(&self, field: NonZeroUsize) -> Option<&Field> {
         self.fields.get(field.get() - 1)
+    }
+
+    /// Mutably access a field via the 1-based HL7 field indexing
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the field
+    #[inline]
+    pub fn field_mut(&mut self, field: NonZeroUsize) -> Option<&mut Field> {
+        self.fields.get_mut(field.get() - 1)
     }
 
     /// Given the source for the original message, extract the (raw) string for this segment
@@ -88,10 +98,27 @@ pub trait FieldAccessor {
 }
 
 impl FieldAccessor for Option<&Segment> {
+    #[inline]
     fn field(&self, field: NonZeroUsize) -> Option<&Field> {
         match self {
             None => None,
             Some(seg) => seg.field(field),
+        }
+    }
+}
+
+/// A trait for accessing fields on segments, to extend Option<&mut Segment> with short-circuit access
+pub trait FieldAccessorMut {
+    /// Access the field given by 1-based indexing
+    fn field_mut(&mut self, field: NonZeroUsize) -> Option<&mut Field>;
+}
+
+impl FieldAccessorMut for Option<&mut Segment> {
+    #[inline]
+    fn field_mut(&mut self, field: NonZeroUsize) -> Option<&mut Field> {
+        match self {
+            None => None,
+            Some(seg) => seg.field_mut(field),
         }
     }
 }
@@ -123,31 +150,23 @@ impl From<Msh> for Segment {
 /// (ex: ORU messages often contain multiple OBX segments)
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Segments {
-    /// A single segment
-    Single(Segment),
-    /// A list of segments (at least 2)
-    Many(Vec<Segment>),
+pub struct Segments(pub Vec<Segment>);
+
+impl Deref for Segments {
+    type Target = Vec<Segment>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Segments {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl Segments {
-    /// Get the segment via the 0-based index of the segment (within the segment type)
-    pub fn get(&self, i: usize) -> Option<&Segment> {
-        match self {
-            Segments::Single(seg) if i == 0 => Some(seg),
-            Segments::Many(segs) if i < segs.len() => Some(&segs[i]),
-            _ => None,
-        }
-    }
-
-    /// Get the number of repeated segments contained within
-    pub fn count(&self) -> usize {
-        match self {
-            Segments::Single(_) => 1,
-            Segments::Many(segs) => segs.len(),
-        }
-    }
-
     /// Locate a field at the cursor position
     ///
     /// # Arguments
@@ -159,13 +178,9 @@ impl Segments {
     /// A tuple containing the segment index number (0-based), HL7 field index (1-based),
     /// and a reference to the field. If the segment(s) don't contain the cursor, returns `None`
     pub fn field_at_cursor(&self, cursor: usize) -> Option<(usize, NonZeroUsize, &Field)> {
-        match self {
-            Segments::Single(seg) => seg.field_at_cursor(cursor).map(|(n, f)| (0, n, f)),
-            Segments::Many(segs) => segs
-                .iter()
-                .enumerate()
-                .find_map(|(i, seg)| seg.field_at_cursor(cursor).map(|(n, f)| (i, n, f))),
-        }
+        self.iter()
+            .enumerate()
+            .find_map(|(i, seg)| seg.field_at_cursor(cursor).map(|(n, f)| (i, n, f)))
     }
 
     /// Locate a segment at the cursor position
@@ -179,31 +194,21 @@ impl Segments {
     /// A tuple containing the segment index number (0-based) and a reference to the field.
     /// If the segment(s) don't contain the cursor, returns `None`
     pub fn segment_at_cursor(&self, cursor: usize) -> Option<(usize, &Segment)> {
-        match self {
-            Segments::Single(seg) => {
-                if seg.range.contains(&cursor) {
-                    Some((0, seg))
-                } else {
-                    None
-                }
-            }
-            Segments::Many(segs) => segs
-                .iter()
-                .enumerate()
-                .find(|(_, seg)| seg.range.contains(&cursor))
-                .map(|(i, seg)| (i, seg)),
-        }
+        self.iter()
+            .enumerate()
+            .find(|(_, seg)| seg.range.contains(&cursor))
+            .map(|(i, seg)| (i, seg))
     }
 }
 
 impl From<Segment> for Segments {
     fn from(value: Segment) -> Self {
-        Segments::Single(value)
+        Segments(vec![value])
     }
 }
 
 impl From<Vec<Segment>> for Segments {
     fn from(value: Vec<Segment>) -> Self {
-        Segments::Many(value)
+        Segments(value)
     }
 }
