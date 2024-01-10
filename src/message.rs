@@ -1,8 +1,10 @@
+use indexmap::IndexMap;
+
 use crate::{
     Component, ComponentAccessor, Field, LocationQuery, ParseError, Repeat, RepeatAccessor,
     Segment, Segments, Separators, SubComponent, SubComponentAccessor,
 };
-use std::{collections::HashMap, num::NonZeroUsize, ops::Range};
+use std::{num::NonZeroUsize, ops::Range};
 
 /// A parsed message. The message structure is valid, but the contents may or may not be.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,7 +15,7 @@ pub struct ParsedMessage<'s> {
     /// The separators & encoding characters defined at the beginning of the MSH segment
     pub separators: Separators,
     /// All the segments stored within the message
-    pub segments: HashMap<&'s str, Segments>,
+    pub segments: IndexMap<&'s str, Segments>,
 }
 
 /// A parsed message that owns its string slice. The message structure is valid, but the contents may or may not be.
@@ -25,7 +27,7 @@ pub struct ParsedMessageOwned {
     /// The separators & encoding characters defined at the beginning of the MSH segment
     pub separators: Separators,
     /// All the segments stored within the message
-    pub segments: HashMap<String, Segments>,
+    pub segments: IndexMap<String, Segments>,
 }
 
 impl<'s> From<ParsedMessage<'s>> for ParsedMessageOwned {

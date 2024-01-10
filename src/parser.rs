@@ -1,4 +1,5 @@
 use super::*;
+use indexmap::IndexMap;
 use nom::{
     bytes::complete::{tag, take, take_till},
     character::complete::char,
@@ -6,7 +7,6 @@ use nom::{
     Err, IResult, InputLength, Parser,
 };
 use nom_locate::{position, LocatedSpan};
-use std::collections::HashMap;
 
 pub(crate) type Span<'a> = LocatedSpan<&'a str>;
 
@@ -242,7 +242,7 @@ pub(crate) fn parse_message(s: Span) -> IResult<Span, ParsedMessage> {
     let msh: Segment = msh.into();
     let msh: Segments = msh.into();
 
-    let mut segments = HashMap::default();
+    let mut segments = IndexMap::default();
     segments.insert("MSH", msh);
 
     let (s, _) = char('\r')(s)?;
