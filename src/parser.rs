@@ -1,6 +1,7 @@
 use super::*;
 use indexmap::IndexMap;
 use nom::{
+    branch::alt,
     bytes::complete::{tag, take, take_till},
     character::complete::char,
     error::{ErrorKind, ParseError},
@@ -83,12 +84,13 @@ fn parse_separators(s: Span) -> IResult<Span, Separators> {
     Ok((s, separators))
 }
 
-fn sub_component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, SubComponent> {
+fn sub_component_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, SubComponent> {
     move |s: Span| -> IResult<Span, SubComponent> {
         let (s, position) = position(s)?;
         let (s, source) = take_till(|c| {
             c == separators.field
                 || c == separators.component
+                || (lenient_segment_separators && c == '\n')
                 || c == '\r'
                 || c == separators.repeat
                 || c == separators.subcomponent
@@ -106,16 +108,17 @@ fn sub_component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span
 
 fn sub_components_parser(
     separators: Separators,
+    lenient_segment_separators: bool
 ) -> impl Fn(Span) -> IResult<Span, Vec<SubComponent>> {
     move |s: Span| -> IResult<Span, Vec<SubComponent>> {
-        let parse_sub_component = sub_component_parser(separators);
+        let parse_sub_component = sub_component_parser(separators, lenient_segment_separators);
         separated_list0_cap(char(separators.subcomponent), parse_sub_component, 1)(s)
     }
 }
 
-fn component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Component> {
+fn component_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Component> {
     move |s: Span| -> IResult<Span, Component> {
-        let parse_sub_components = sub_components_parser(separators);
+        let parse_sub_components = sub_components_parser(separators, lenient_segment_separators);
 
         let (s, start_pos) = position(s)?;
         let (s, sub_components) = parse_sub_components(s)?;
@@ -131,16 +134,16 @@ fn component_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Co
     }
 }
 
-fn components_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Component>> {
+fn components_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Vec<Component>> {
     move |s: Span| -> IResult<Span, Vec<Component>> {
-        let parse_component = component_parser(separators);
+        let parse_component = component_parser(separators, lenient_segment_separators);
         separated_list0_cap(char(separators.component), parse_component, 10)(s)
     }
 }
 
-fn repeat_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Repeat> {
+fn repeat_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Repeat> {
     move |s: Span| -> IResult<Span, Repeat> {
-        let parse_components = components_parser(separators);
+        let parse_components = components_parser(separators, lenient_segment_separators);
 
         let (s, start_pos) = position(s)?;
         let (s, components) = parse_components(s)?;
@@ -156,16 +159,16 @@ fn repeat_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Repea
     }
 }
 
-fn repeats_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Repeat>> {
+fn repeats_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Vec<Repeat>> {
     move |s: Span| -> IResult<Span, Vec<Repeat>> {
-        let parse_repeat = repeat_parser(separators);
+        let parse_repeat = repeat_parser(separators, lenient_segment_separators);
         separated_list0_cap(char(separators.repeat), parse_repeat, 1)(s)
     }
 }
 
-fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field> {
+fn field_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Field> {
     move |s: Span| -> IResult<Span, Field> {
-        let parse_repeats = repeats_parser(separators);
+        let parse_repeats = repeats_parser(separators, lenient_segment_separators);
 
         let (s, start_pos) = position(s)?;
         let (s, repeats) = parse_repeats(s)?;
@@ -181,21 +184,21 @@ fn field_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Field>
     }
 }
 
-fn fields_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, Vec<Field>> {
+fn fields_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Vec<Field>> {
     move |s: Span| -> IResult<Span, Vec<Field>> {
-        let parse_field = field_parser(separators);
+        let parse_field = field_parser(separators, lenient_segment_separators);
         separated_list0_cap(char(separators.field), parse_field, 20)(s)
     }
 }
 
-fn parse_msh(s: Span) -> IResult<Span, Msh> {
+fn parse_msh(s: Span, lenient_segment_separators: bool) -> IResult<Span, Msh> {
     let (s, start_pos) = position(s)?;
 
     let (s, _) = tag("MSH")(s)?;
     let (s, separators) = parse_separators(s)?;
     let (s, _) = char(separators.field)(s)?;
 
-    let parse_fields = fields_parser(separators);
+    let parse_fields = fields_parser(separators, lenient_segment_separators);
     let (s, fields) = parse_fields(s)?;
 
     let (s, end_pos) = position(s)?;
@@ -210,14 +213,14 @@ fn parse_msh(s: Span) -> IResult<Span, Msh> {
     ))
 }
 
-fn segment_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, (&str, Segment)> {
+fn segment_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, (&str, Segment)> {
     move |s: Span| -> IResult<Span, (&str, Segment)> {
         let (s, start_pos) = position(s)?;
 
         let (s, identifier) = take(3u8)(s)?;
         let (s, _) = char(separators.field)(s)?;
 
-        let parse_fields = fields_parser(separators);
+        let parse_fields = fields_parser(separators, lenient_segment_separators);
         let (s, fields) = parse_fields(s)?;
         let (s, end_pos) = position(s)?;
 
@@ -234,9 +237,22 @@ fn segment_parser(separators: Separators) -> impl Fn(Span) -> IResult<Span, (&st
     }
 }
 
-pub(crate) fn parse_message(s: Span) -> IResult<Span, ParsedMessage> {
+fn segment_separators_lenient<'s, E: ParseError<Span<'s>>>(
+) -> impl FnMut(Span<'s>) -> IResult<Span<'s>, Span<'s>, E> {
+    alt((tag("\r\n"), tag("\n"), tag("\r")))
+}
+
+fn segment_separators_strict<'s, E: ParseError<Span<'s>>>(
+) -> impl FnMut(Span<'s>) -> IResult<Span<'s>, Span<'s>, E> {
+    tag("\r")
+}
+
+pub(crate) fn parse_message(
+    s: Span,
+    lenient_segment_separators: bool,
+) -> IResult<Span, ParsedMessage> {
     let source = s.fragment();
-    let (s, msh) = parse_msh(s)?;
+    let (s, msh) = parse_msh(s, lenient_segment_separators)?;
 
     let separators = msh.separators;
     let msh: Segment = msh.into();
@@ -245,9 +261,17 @@ pub(crate) fn parse_message(s: Span) -> IResult<Span, ParsedMessage> {
     let mut segments = IndexMap::default();
     segments.insert("MSH", msh);
 
-    let (s, _) = char('\r')(s)?;
-    let parse_segment = segment_parser(separators);
-    let (s, segs) = separated_list0_cap(char('\r'), parse_segment, 10)(s)?;
+    let (s, _) = if lenient_segment_separators {
+        segment_separators_lenient()(s)?
+    } else {
+        segment_separators_strict()(s)?
+    };
+    let parse_segment = segment_parser(separators, lenient_segment_separators);
+    let (s, segs) = if lenient_segment_separators {
+        separated_list0_cap(segment_separators_lenient(), parse_segment, 10)(s)?
+    } else {
+        separated_list0_cap(segment_separators_strict(), parse_segment, 10)(s)?
+    };
     for (seg_id, seg) in segs.into_iter() {
         if segments.contains_key(seg_id) {
             let mut segs = segments.remove(seg_id).unwrap();
@@ -281,7 +305,7 @@ mod tests {
 
     #[test]
     fn can_parse_sub_components() {
-        let parse_sub_components = sub_components_parser(Separators::default());
+        let parse_sub_components = sub_components_parser(Separators::default(), false);
 
         let sub_components = "abc&def";
         let (_, sub_components) =
@@ -293,7 +317,7 @@ mod tests {
 
     #[test]
     fn can_parse_component_subcomponents() {
-        let parse_components = components_parser(Separators::default());
+        let parse_components = components_parser(Separators::default(), false);
 
         let components = "abc^def&ghi^jkl";
         let (_, components) =
@@ -307,7 +331,7 @@ mod tests {
 
     #[test]
     fn can_parse_components() {
-        let parse_components = components_parser(Separators::default());
+        let parse_components = components_parser(Separators::default(), false);
 
         let components = "ADT^A01";
         let (_, components) =
@@ -325,7 +349,7 @@ mod tests {
 
     #[test]
     fn can_parse_field_components() {
-        let parse_fields = fields_parser(Separators::default());
+        let parse_fields = fields_parser(Separators::default(), false);
 
         let fields = "abc|def^hij";
         let (_, fields) = parse_fields(Span::new(fields)).expect("can parse fields");
@@ -352,7 +376,7 @@ mod tests {
 
     #[test]
     fn can_parse_fields() {
-        let parse_fields = fields_parser(Separators::default());
+        let parse_fields = fields_parser(Separators::default(), false);
 
         let fields = "abc|def|hij^klm\r123";
         let (_, fields) = parse_fields(Span::new(fields)).expect("can parse fields");
@@ -370,7 +394,7 @@ mod tests {
     #[test]
     fn can_parse_msh() {
         let (_, msh) =
-            parse_msh(Span::new("MSH|^~\\&|sfac|sapp|rfac|rapp")).expect("can parse msh");
+            parse_msh(Span::new("MSH|^~\\&|sfac|sapp|rfac|rapp"), false).expect("can parse msh");
         assert_eq!(msh.fields.len(), 4);
         assert_eq!(
             msh.fields[0].source("MSH|^~\\&|sfac|sapp|rfac|rapp"),
@@ -397,7 +421,7 @@ mod tests {
     #[test]
     fn msh_field_access_is_correct() {
         let (_, msh) =
-            parse_msh(Span::new("MSH|^~\\&|sfac|sapp|rfac|rapp")).expect("can parse msh");
+            parse_msh(Span::new("MSH|^~\\&|sfac|sapp|rfac|rapp"), false).expect("can parse msh");
         let seg: Segment = msh.into();
         assert_eq!(
             seg.field(NonZeroUsize::new(1).unwrap())
@@ -422,7 +446,7 @@ mod tests {
     #[test]
     fn can_parse_segment() {
         let segment = "MSA|AA|1234|woohoo";
-        let parse_segment = segment_parser(Separators::default());
+        let parse_segment = segment_parser(Separators::default(), false);
         let (_, (identifier, segment)) =
             parse_segment(Span::new(segment)).expect("can parse segment");
         assert_eq!(segment.source("MSA|AA|1234|woohoo"), "MSA|AA|1234|woohoo");
@@ -453,12 +477,12 @@ mod tests {
 
     #[test]
     fn fails_to_parse_msh_without_id_and_starter_fields() {
-        assert!(parse_msh(Span::new("abc|def")).is_err());
-        assert!(parse_msh(Span::new("^~\\&")).is_err());
-        assert!(parse_msh(Span::new("|^~\\&")).is_err());
-        assert!(parse_msh(Span::new("MSH|^~\\&")).is_err());
-        assert!(parse_msh(Span::new("MS|^~\\&")).is_err());
-        assert!(parse_msh(Span::new("MS_|^~\\&")).is_err());
+        assert!(parse_msh(Span::new("abc|def"), false).is_err());
+        assert!(parse_msh(Span::new("^~\\&"), false).is_err());
+        assert!(parse_msh(Span::new("|^~\\&"), false).is_err());
+        assert!(parse_msh(Span::new("MSH|^~\\&"), false).is_err());
+        assert!(parse_msh(Span::new("MS|^~\\&"), false).is_err());
+        assert!(parse_msh(Span::new("MS_|^~\\&"), false).is_err());
     }
 
     #[test]
@@ -466,7 +490,27 @@ mod tests {
         let message = include_str!("../test_assets/sample_adt_a01.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = ParsedMessage::parse(&message).expect("can parse message");
+        let message = ParsedMessage::parse(&message, false).expect("can parse message");
+
+        assert!(message.has_segment("EVN"));
+        assert!(message.has_segment("PID"));
+        assert!(message.has_segment("PV1"));
+
+        assert_eq!(
+            message
+                .segment("MSH")
+                .expect("MSH segment exists")
+                .field(NonZeroUsize::new(9).unwrap())
+                .expect("field 9 exists")
+                .source(message.source),
+            "ADT^A01"
+        );
+    }
+
+    #[test]
+    fn can_parse_message_with_lenient_segment_separators() {
+        let message = include_str!("../test_assets/sample_adt_a01.hl7");
+        let message = ParsedMessage::parse(message, true).expect("can parse message");
 
         assert!(message.has_segment("EVN"));
         assert!(message.has_segment("PID"));
@@ -488,7 +532,7 @@ mod tests {
         let message = include_str!("../test_assets/sample_oru_r01_lab.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
+        let message = ParsedMessage::parse(message.as_str(), false).expect("can parse message");
 
         assert!(message.has_segment("OBX"));
         assert_eq!(message.segment_count("OBX"), 14);
@@ -520,7 +564,7 @@ mod tests {
         let message = include_str!("../test_assets/sample_adt_a04.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
+        let message = ParsedMessage::parse(message.as_str(), false).expect("can parse message");
 
         assert_eq!(
             message

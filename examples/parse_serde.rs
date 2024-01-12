@@ -5,7 +5,7 @@ fn main() {
         .replace("\r\n", "\r")
         .replace('\n', "\r");
 
-    let parsed_message = ParsedMessage::parse(&message).expect("can parse message");
+    let parsed_message = ParsedMessage::parse(&message, false).expect("can parse message");
     let serialized_message =
         serde_json::to_string_pretty(&parsed_message).expect("can serialize message");
     println!("{}", serialized_message);

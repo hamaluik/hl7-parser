@@ -488,7 +488,7 @@ mod test {
         let message = include_str!("../test_assets/sample_adt_a04.hl7")
             .replace("\r\n", "\r")
             .replace('\n', "\r");
-        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
+        let message = ParsedMessage::parse(message.as_str(), false).expect("can parse message");
         let location = message.locate_cursor(0x1cc);
         let query_direct = LocationQuery::from(&location);
         let location = location.to_string();

@@ -5,6 +5,6 @@ fn main() {
         .replace("\r\n", "\r")
         .replace('\n', "\r");
     for _ in 0..100_000 {
-        ParsedMessage::parse(message.as_str()).expect("can parse message");
+        ParsedMessage::parse(message.as_str(), false).expect("can parse message");
     }
 }

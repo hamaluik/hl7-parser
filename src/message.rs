@@ -98,8 +98,8 @@ impl<'s> std::fmt::Display for LocatedData<'s> {
 
 impl<'s> ParsedMessage<'s> {
     /// Parse a string to obtain the underlying message
-    pub fn parse(source: &'s str) -> Result<ParsedMessage<'s>, ParseError> {
-        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(source))?;
+    pub fn parse(source: &'s str, lenient_segment_separators: bool) -> Result<ParsedMessage<'s>, ParseError> {
+        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(source), lenient_segment_separators)?;
         Ok(message)
     }
 
@@ -148,10 +148,8 @@ impl<'s> ParsedMessage<'s> {
     /// ```
     /// # use hl7_parser::ParsedMessage;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessage::parse(&message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7");
+    /// let message = ParsedMessage::parse(&message, true).expect("can parse message");
     ///
     /// let message_type = message.get_field_source(("MSH", 0), NonZeroUsize::new(9).unwrap());
     /// assert_eq!(message_type.unwrap(), "ADT^A01");
@@ -191,10 +189,8 @@ impl<'s> ParsedMessage<'s> {
     /// ```
     /// # use hl7_parser::ParsedMessage;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a04.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessage::parse(&message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a04.hl7");
+    /// let message = ParsedMessage::parse(&message, true).expect("can parse message");
     ///
     /// let allergy_reaction_2 = message.get_repeat_source(
     ///     ("AL1", 0),
@@ -242,10 +238,8 @@ impl<'s> ParsedMessage<'s> {
     /// ```
     /// # use hl7_parser::ParsedMessage;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessage::parse(&message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7");
+    /// let message = ParsedMessage::parse(&message, true).expect("can parse message");
     ///
     /// let trigger_event = message.get_component_source(
     ///     ("MSH", 0),
@@ -299,10 +293,8 @@ impl<'s> ParsedMessage<'s> {
     /// ```
     /// # use hl7_parser::ParsedMessage;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_oru_r01_generic.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessage::parse(&message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_oru_r01_generic.hl7");
+    /// let message = ParsedMessage::parse(&message, true).expect("can parse message");
     ///
     /// let universal_id = message.get_sub_component_source(
     ///     ("PID", 0),
@@ -410,10 +402,8 @@ impl<'s> ParsedMessage<'s> {
     /// ```
     /// # use hl7_parser::ParsedMessage;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessage::parse(&message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7");
+    /// let message = ParsedMessage::parse(&message, true).expect("can parse message");
     ///
     /// let trigger_event = message.query_value("MSH.9.2").expect("can parse location query");
     /// assert_eq!(trigger_event, Some("A01"));
@@ -467,10 +457,8 @@ impl<'s> ParsedMessage<'s> {
     /// ```
     /// # use hl7_parser::ParsedMessage;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessage::parse(&message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7");
+    /// let message = ParsedMessage::parse(&message, true).expect("can parse message");
     ///
     /// let trigger_event = message.query("MSH.9.2").expect("can parse location query");
     /// assert_eq!(trigger_event, Some(40..43));
@@ -511,9 +499,9 @@ impl<'s> ParsedMessage<'s> {
 
 impl ParsedMessageOwned {
     /// Parse a string to obtain the underlying message
-    pub fn parse<'s, S: ToString + 's>(source: S) -> Result<ParsedMessageOwned, ParseError> {
+    pub fn parse<'s, S: ToString + 's>(source: S, lenient_segment_separators: bool) -> Result<ParsedMessageOwned, ParseError> {
         let source = source.to_string();
-        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(&source))?;
+        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(&source), lenient_segment_separators)?;
         Ok(message.into())
     }
 
@@ -569,10 +557,8 @@ impl ParsedMessageOwned {
     /// ```
     /// # use hl7_parser::ParsedMessageOwned;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessageOwned::parse(message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7");
+    /// let message = ParsedMessageOwned::parse(&message, true).expect("can parse message");
     ///
     /// let message_type = message.get_field_source(("MSH", 0), NonZeroUsize::new(9).unwrap());
     /// assert_eq!(message_type.unwrap(), "ADT^A01");
@@ -627,10 +613,8 @@ impl ParsedMessageOwned {
     /// ```
     /// # use hl7_parser::ParsedMessageOwned;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a04.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessageOwned::parse(message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a04.hl7");
+    /// let message = ParsedMessageOwned::parse(&message, true).expect("can parse message");
     ///
     /// let allergy_reaction_2 = message.get_repeat_source(
     ///     ("AL1", 0),
@@ -694,10 +678,8 @@ impl ParsedMessageOwned {
     /// ```
     /// # use hl7_parser::ParsedMessageOwned;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessageOwned::parse(message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7");
+    /// let message = ParsedMessageOwned::parse(&message, true).expect("can parse message");
     ///
     /// let trigger_event = message.get_component_source(
     ///     ("MSH", 0),
@@ -770,10 +752,8 @@ impl ParsedMessageOwned {
     /// ```
     /// # use hl7_parser::ParsedMessageOwned;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_oru_r01_generic.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessageOwned::parse(message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_oru_r01_generic.hl7");
+    /// let message = ParsedMessageOwned::parse(message, true).expect("can parse message");
     ///
     /// let universal_id = message.get_sub_component_source(
     ///     ("PID", 0),
@@ -897,10 +877,8 @@ impl ParsedMessageOwned {
     /// ```
     /// # use hl7_parser::ParsedMessageOwned;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessageOwned::parse(message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7");
+    /// let message = ParsedMessageOwned::parse(message, true).expect("can parse message");
     ///
     /// let trigger_event = message.query_value("MSH.9.2").expect("can parse location query");
     /// assert_eq!(trigger_event, Some("A01"));
@@ -955,10 +933,8 @@ impl ParsedMessageOwned {
     /// ```
     /// # use hl7_parser::ParsedMessageOwned;
     /// # use std::num::NonZeroUsize;
-    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessageOwned::parse(message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7");
+    /// let message = ParsedMessageOwned::parse(message, true).expect("can parse message");
     ///
     /// let trigger_event = message.query("MSH.9.2").expect("can parse location query");
     /// assert_eq!(trigger_event, Some(40..43));
@@ -1004,10 +980,8 @@ mod test {
     #[test]
     fn can_locate_cursor() {
         let cursor = 26;
-        let message = include_str!("../test_assets/sample_adt_a01.hl7")
-            .replace("\r\n", "\r")
-            .replace('\n', "\r");
-        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
+        let message = include_str!("../test_assets/sample_adt_a01.hl7");
+        let message = ParsedMessage::parse(message, true).expect("can parse message");
 
         let (id, n, seg) = message
             .segment_at_cursor(cursor)
@@ -1043,10 +1017,8 @@ mod test {
         assert_eq!(n, NonZeroUsize::new(3).unwrap());
         assert_eq!(component.source(message.source), "HOLLYWOOD");
 
-        let message = include_str!("../test_assets/sample_adt_a04.hl7")
-            .replace("\r\n", "\r")
-            .replace('\n', "\r");
-        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
+        let message = include_str!("../test_assets/sample_adt_a04.hl7");
+        let message = ParsedMessage::parse(message, true).expect("can parse message");
         let cursor = 0x1cc;
 
         let (id, n, seg) = message
@@ -1069,10 +1041,8 @@ mod test {
 
     #[test]
     fn can_locate_cursor_at_empty_fields() {
-        let message = include_str!("../test_assets/sample_adt_a01.hl7")
-            .replace("\r\n", "\r")
-            .replace('\n', "\r");
-        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
+        let message = include_str!("../test_assets/sample_adt_a01.hl7");
+        let message = ParsedMessage::parse(message, true).expect("can parse message");
         let location = message.locate_cursor(19);
         assert!(location.segment.is_some());
         assert!(location.field.is_some());
@@ -1083,19 +1053,15 @@ mod test {
     #[test]
     fn can_display_hl7_path() {
         let cursor = 0x458;
-        let message = include_str!("../test_assets/sample_adt_a01.hl7")
-            .replace("\r\n", "\r")
-            .replace('\n', "\r");
-        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
+        let message = include_str!("../test_assets/sample_adt_a01.hl7");
+        let message = ParsedMessage::parse(message, true).expect("can parse message");
         let location = message.locate_cursor(cursor);
         let location = format!("{location}");
         assert_eq!(location, "IN1.5.3.1");
 
         let cursor = 0x1cc;
-        let message = include_str!("../test_assets/sample_adt_a04.hl7")
-            .replace("\r\n", "\r")
-            .replace('\n', "\r");
-        let message = ParsedMessage::parse(message.as_str()).expect("can parse message");
+        let message = include_str!("../test_assets/sample_adt_a04.hl7");
+        let message = ParsedMessage::parse(message, true).expect("can parse message");
         let location = message.locate_cursor(cursor);
         let location = format!("{location}");
         assert_eq!(location, "AL1.5[2].1.1");
@@ -1103,14 +1069,11 @@ mod test {
 
     #[test]
     fn can_create_owned_version() {
-        let raw_message = include_str!("../test_assets/sample_adt_a01.hl7")
-            .replace("\r\n", "\r")
-            .replace('\n', "\r");
-
-        let message = ParsedMessage::parse(raw_message.as_str()).expect("can parse message");
+        let raw_message = include_str!("../test_assets/sample_adt_a01.hl7");
+        let message = ParsedMessage::parse(raw_message, true).expect("can parse message");
         let message_from = ParsedMessageOwned::from(message);
 
-        let message_direct = ParsedMessageOwned::parse(raw_message).expect("can parse message");
+        let message_direct = ParsedMessageOwned::parse(raw_message, true).expect("can parse message");
 
         assert_eq!(message_from, message_direct);
     }
@@ -1118,7 +1081,7 @@ mod test {
     #[test]
     fn has_a_not_terrible_error_message() {
         assert_eq!(
-            ParsedMessage::parse("MSH|^~\\&$")
+            ParsedMessage::parse("MSH|^~\\&$", false)
                 .expect_err("ParsedMessage parsing to fail")
                 .to_string()
                 .as_str(),
@@ -1128,9 +1091,9 @@ mod test {
 
     #[test]
     fn message_and_message_buf_have_the_same_errors() {
-        let err = ParsedMessage::parse("MSH|^~\\&$").expect_err("ParsedMessage parsing to fail");
+        let err = ParsedMessage::parse("MSH|^~\\&$", false).expect_err("ParsedMessage parsing to fail");
         let err_buf =
-            ParsedMessageOwned::parse("MSH|^~\\&$").expect_err("ParsedMessage parsing to fail");
+            ParsedMessageOwned::parse("MSH|^~\\&$", false).expect_err("ParsedMessage parsing to fail");
         assert_eq!(err, err_buf);
         assert_eq!(err.to_string(), err_buf.to_string());
     }

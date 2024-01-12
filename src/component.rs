@@ -46,10 +46,8 @@ impl Component {
     /// ```
     /// # use std::num::NonZeroUsize;
     /// # use hl7_parser::ParsedMessage;
-    /// let message = include_str!("../test_assets/sample_oru_r01_generic.hl7")
-    ///     .replace("\r\n", "\r")
-    ///     .replace('\n', "\r");
-    /// let message = ParsedMessage::parse(&message).expect("can parse message");
+    /// let message = include_str!("../test_assets/sample_oru_r01_generic.hl7");
+    /// let message = ParsedMessage::parse(&message, true).expect("can parse message");
     ///
     /// let segment = message.segment("PID").expect("can get PID segment");
     /// let field = segment.field(NonZeroUsize::new(3).unwrap()).expect("can get field 3");

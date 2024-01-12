@@ -16,9 +16,9 @@
 //! MSH|^~\&|AccMgr|1|||20050110045504||ADT^A01|599102|P|2.3|||
 //! PID|1||10006579^^^1^MRN^1||DUCK^DONALD^D||19241010|M||1|111 DUCK ST^^FOWL^CA^999990000^^M|1|8885551212|8885551212|1|2||40007716^^^AccMgr^VN^1|123121234|||||||||||NO NK1|1|DUCK^HUEY|SO|3583 DUCK RD^^FOWL^CA^999990000|8885552222||Y||||||||||||||
 //! PV1|1|I|PREOP^101^1^1^^^S|3|||37^DISNEY^WALT^^^^^^AccMgr^^^^CI|||01||||1|||37^DISNEY^WALT^^^^^^AccMgr^^^^CI|2|40007716^^^AccMgr^VN|4|||||||||||||||||||1||G|||20050110045253||||||
-//! "#.replace("\r\n", "\r").replace('\n', "\r");
+//! "#;
 //!
-//! let message = ParsedMessage::parse(message.trim()).expect("can parse message");
+//! let message = ParsedMessage::parse(message.trim(), true).expect("can parse message");
 //! let message_type = message.get_field_source(("MSH", 0), NonZeroUsize::new(9).unwrap());
 //! assert_eq!(message_type.unwrap(), "ADT^A01");
 //! ```
@@ -28,10 +28,8 @@
 //! ```
 //! use hl7_parser::ParsedMessage;
 //!
-//! let message = include_str!("../test_assets/sample_adt_a01.hl7")
-//!     .replace("\r\n", "\r")
-//!     .replace('\n', "\r");
-//! let message = ParsedMessage::parse(&message).expect("can parse message");
+//! let message = include_str!("../test_assets/sample_adt_a01.hl7");
+//! let message = ParsedMessage::parse(&message, true).expect("can parse message");
 //!
 //! let trigger_event = message.query_value("MSH.9.2").expect("can parse location query");
 //! assert_eq!(trigger_event, Some("A01"));
@@ -49,9 +47,9 @@
 //! MSH|^~\&|AccMgr|1|||20050110045504||ADT^A01|599102|P|2.3|||
 //! PID|1||10006579^^^1^MRN^1||DUCK^DONALD^D||19241010|M||1|111 DUCK ST^^FOWL^CA^999990000^^M|1|8885551212|8885551212|1|2||40007716^^^AccMgr^VN^1|123121234|||||||||||NO NK1|1|DUCK^HUEY|SO|3583 DUCK RD^^FOWL^CA^999990000|8885552222||Y||||||||||||||
 //! PV1|1|I|PREOP^101^1^1^^^S|3|||37^DISNEY^WALT^^^^^^AccMgr^^^^CI|||01||||1|||37^DISNEY^WALT^^^^^^AccMgr^^^^CI|2|40007716^^^AccMgr^VN|4|||||||||||||||||||1||G|||20050110045253||||||
-//! "#.replace("\r\n", "\r").replace('\n', "\r");
+//! "#;
 //!
-//! let message = ParsedMessage::parse(message.trim()).expect("can parse message");
+//! let message = ParsedMessage::parse(message.trim(), true).expect("can parse message");
 //! let location = message.locate_cursor(25);
 //! assert_eq!(location.segment.unwrap().0, "MSH");
 //! assert_eq!(location.field.unwrap().0.get(), 7);
