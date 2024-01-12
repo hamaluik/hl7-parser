@@ -1,9 +1,0 @@
-[package]
-name = "fuzz-afl"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-afl = "*"
-hl7-parser = { path = "../" }
-
