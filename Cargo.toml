@@ -8,6 +8,11 @@ documentation = "https://docs.rs/hl7-parser"
 repository = "https://github.com/hamaluik/hl7-parser"
 readme = "README.md"
 license = "Apache-2.0"
+keywords = ["hl7", "health", "parse", "parser"]
+categories = ["parser-implementations", "science"]
+
+[lints.rust]
+unsafe_code = "forbid"
 
 [dependencies]
 indexmap = { version = "2.1", features = ["serde"] }
