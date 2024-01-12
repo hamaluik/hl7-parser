@@ -4,7 +4,7 @@ use std::{
     ops::{Index, Range},
 };
 
-/// Represents an HL7v2 repeat of a repeat
+/// Represents an HL7v2 repeat of a field
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Repeat {

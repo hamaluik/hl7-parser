@@ -168,6 +168,9 @@ impl<'s> ParsedMessage<'s> {
         seg.field(field).map(|f| f.source(self.source))
     }
 
+    /// Get the field for a given field, if it exists in the message. The field
+    /// is identified by the segment identifier, segment repeat identifier, and 1-based field
+    /// identifier.
     pub fn get_field<S: AsRef<str>>(
         &'s self,
         segment: (S, usize),
@@ -214,6 +217,9 @@ impl<'s> ParsedMessage<'s> {
             .map(|r| r.source(self.source))
     }
 
+    /// Directly get the repeat for a given field and repeat, if it exists in
+    /// the message. The field is identified by the segment identifier, segment
+    /// repeat identifier, 1-based field identifier, and the repeat identifier
     pub fn get_repeat<S: AsRef<str>>(
         &'s self,
         segment: (S, usize),
@@ -265,6 +271,9 @@ impl<'s> ParsedMessage<'s> {
             .map(|c| c.source(self.source))
     }
 
+    /// Directly get the component for a given component, if it exists in the message. The
+    /// component is identified by the segment identifier, segment repeat identifier, 1-based field
+    /// identifier, and 1-based component identifier
     pub fn get_component<S: AsRef<str>>(
         &'s self,
         segment: (S, usize),
@@ -322,6 +331,9 @@ impl<'s> ParsedMessage<'s> {
             .map(|s| s.source(self.source))
     }
 
+    /// Directly get the sub-component for a given sub-component, if it exists in the message.
+    /// The component is identified by the segment identifier, segment repeat identifier, 1-based field
+    /// identifier, 1-based component identifier, and 1-based sub-component identifier
     pub fn get_sub_component<S: AsRef<str>>(
         &'s self,
         segment: (S, usize),
@@ -435,6 +447,34 @@ impl<'s> ParsedMessage<'s> {
         })
     }
 
+    /// Query the message for a given segment, field, component, or sub-comonent,
+    /// returning the range in the source string that the item occupies.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - a [LocationQuery] targeting you want to access
+    ///
+    /// # Returns
+    ///
+    /// * [Result::Err] if the location query couldn't be parsed
+    /// * [Result::Ok] if the item location query could be parsed message
+    ///   + [Option::Some] containing the range in the source if the queried item was found in the message
+    ///   + [Option::None] if the queried item was _not_ found in the message
+    /// message
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::ParsedMessage;
+    /// # use std::num::NonZeroUsize;
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
+    ///     .replace("\r\n", "\r")
+    ///     .replace('\n', "\r");
+    /// let message = ParsedMessage::parse(&message).expect("can parse message");
+    ///
+    /// let trigger_event = message.query("MSH.9.2").expect("can parse location query");
+    /// assert_eq!(trigger_event, Some(40..43));
+    /// ```
     pub fn query<Q, QErr>(&self, query: Q) -> Result<Option<Range<usize>>, QErr>
     where
         Q: TryInto<LocationQuery, Error = QErr>,
@@ -549,6 +589,9 @@ impl ParsedMessageOwned {
         seg.field(field).map(|f| f.source(self.source.as_str()))
     }
 
+    /// Get the field for a given field, if it exists in the message. The field
+    /// is identified by the segment identifier, segment repeat identifier, and 1-based field
+    /// identifier.
     pub fn get_field<S: AsRef<str>>(
         &self,
         segment: (S, usize),
@@ -561,6 +604,9 @@ impl ParsedMessageOwned {
         seg.field(field)
     }
 
+    /// Get a mutable reference to a field for a given field, if it exists in the message. The field
+    /// is identified by the segment identifier, segment repeat identifier, and 1-based field
+    /// identifier.
     pub fn get_field_mut<S: AsRef<str>>(
         &mut self,
         segment: (S, usize),
@@ -607,6 +653,9 @@ impl ParsedMessageOwned {
             .map(|r| r.source(self.source.as_str()))
     }
 
+    /// Directly get the repeat for a given field and repeat, if it exists in
+    /// the message. The field is identified by the segment identifier, segment
+    /// repeat identifier, 1-based field identifier, and the repeat identifier
     pub fn get_repeat<S: AsRef<str>>(
         &self,
         segment: (S, usize),
@@ -620,6 +669,9 @@ impl ParsedMessageOwned {
         seg.field(field).and_then(|f| f.repeat(repeat))
     }
 
+    /// Get a mutable reference to the repeat for a given field and repeat, if it exists in
+    /// the message. The field is identified by the segment identifier, segment
+    /// repeat identifier, 1-based field identifier, and the repeat identifier
     pub fn get_repeat_mut<S: AsRef<str>>(
         &mut self,
         segment: (S, usize),
@@ -671,6 +723,9 @@ impl ParsedMessageOwned {
             .map(|c| c.source(self.source.as_str()))
     }
 
+    /// Directly get the component for a given component, if it exists in the message. The
+    /// component is identified by the segment identifier, segment repeat identifier, 1-based field
+    /// identifier, and 1-based component identifier
     pub fn get_component<S: AsRef<str>>(
         &self,
         segment: (S, usize),
@@ -687,6 +742,9 @@ impl ParsedMessageOwned {
             .and_then(|r| r.component(component))
     }
 
+    /// Get a mutable reference to a component for a given component, if it exists in the message. The
+    /// component is identified by the segment identifier, segment repeat identifier, 1-based field
+    /// identifier, and 1-based component identifier
     pub fn get_component_mut<S: AsRef<str>>(
         &mut self,
         segment: (S, usize),
@@ -744,6 +802,9 @@ impl ParsedMessageOwned {
             .map(|s| s.source(self.source.as_str()))
     }
 
+    /// Directly get the sub-component for a given sub-component, if it exists in the message.
+    /// The component is identified by the segment identifier, segment repeat identifier, 1-based field
+    /// identifier, 1-based component identifier, and 1-based sub-component identifier
     pub fn get_sub_component<S: AsRef<str>>(
         &self,
         segment: (S, usize),
@@ -762,6 +823,9 @@ impl ParsedMessageOwned {
             .and_then(|c| c.sub_component(sub_component))
     }
 
+    /// Get a mutable reference to the sub-component for a given sub-component, if it exists in the message.
+    /// The component is identified by the segment identifier, segment repeat identifier, 1-based field
+    /// identifier, 1-based component identifier, and 1-based sub-component identifier
     pub fn get_sub_component_mut<S: AsRef<str>>(
         &mut self,
         segment: (S, usize),
@@ -872,6 +936,33 @@ impl ParsedMessageOwned {
         })
     }
 
+    /// Query the message for a given segment, field, component, or sub-comonent,
+    /// returning the range in the source string that the item occupies.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - a [LocationQuery] targeting you want to access
+    ///
+    /// # Returns
+    ///
+    /// * [Result::Err] if the location query couldn't be parsed
+    /// * [Result::Ok] if the item location query could be parsed message
+    ///   + [Option::Some] containing the item source if the queried item was found in the message
+    ///   + [Option::None] if the queried item was _not_ found in the message
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hl7_parser::ParsedMessageOwned;
+    /// # use std::num::NonZeroUsize;
+    /// let message = include_str!("../test_assets/sample_adt_a01.hl7")
+    ///     .replace("\r\n", "\r")
+    ///     .replace('\n', "\r");
+    /// let message = ParsedMessageOwned::parse(message).expect("can parse message");
+    ///
+    /// let trigger_event = message.query("MSH.9.2").expect("can parse location query");
+    /// assert_eq!(trigger_event, Some(40..43));
+    /// ```
     pub fn query<Q, QErr>(&self, query: Q) -> Result<Option<Range<usize>>, QErr>
     where
         Q: TryInto<LocationQuery, Error = QErr>,
