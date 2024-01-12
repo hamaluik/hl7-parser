@@ -84,7 +84,10 @@ fn parse_separators(s: Span) -> IResult<Span, Separators> {
     Ok((s, separators))
 }
 
-fn sub_component_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, SubComponent> {
+fn sub_component_parser(
+    separators: Separators,
+    lenient_segment_separators: bool,
+) -> impl Fn(Span) -> IResult<Span, SubComponent> {
     move |s: Span| -> IResult<Span, SubComponent> {
         let (s, position) = position(s)?;
         let (s, source) = take_till(|c| {
@@ -108,7 +111,7 @@ fn sub_component_parser(separators: Separators, lenient_segment_separators: bool
 
 fn sub_components_parser(
     separators: Separators,
-    lenient_segment_separators: bool
+    lenient_segment_separators: bool,
 ) -> impl Fn(Span) -> IResult<Span, Vec<SubComponent>> {
     move |s: Span| -> IResult<Span, Vec<SubComponent>> {
         let parse_sub_component = sub_component_parser(separators, lenient_segment_separators);
@@ -116,7 +119,10 @@ fn sub_components_parser(
     }
 }
 
-fn component_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Component> {
+fn component_parser(
+    separators: Separators,
+    lenient_segment_separators: bool,
+) -> impl Fn(Span) -> IResult<Span, Component> {
     move |s: Span| -> IResult<Span, Component> {
         let parse_sub_components = sub_components_parser(separators, lenient_segment_separators);
 
@@ -134,14 +140,20 @@ fn component_parser(separators: Separators, lenient_segment_separators: bool) ->
     }
 }
 
-fn components_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Vec<Component>> {
+fn components_parser(
+    separators: Separators,
+    lenient_segment_separators: bool,
+) -> impl Fn(Span) -> IResult<Span, Vec<Component>> {
     move |s: Span| -> IResult<Span, Vec<Component>> {
         let parse_component = component_parser(separators, lenient_segment_separators);
         separated_list0_cap(char(separators.component), parse_component, 10)(s)
     }
 }
 
-fn repeat_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Repeat> {
+fn repeat_parser(
+    separators: Separators,
+    lenient_segment_separators: bool,
+) -> impl Fn(Span) -> IResult<Span, Repeat> {
     move |s: Span| -> IResult<Span, Repeat> {
         let parse_components = components_parser(separators, lenient_segment_separators);
 
@@ -159,14 +171,20 @@ fn repeat_parser(separators: Separators, lenient_segment_separators: bool) -> im
     }
 }
 
-fn repeats_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Vec<Repeat>> {
+fn repeats_parser(
+    separators: Separators,
+    lenient_segment_separators: bool,
+) -> impl Fn(Span) -> IResult<Span, Vec<Repeat>> {
     move |s: Span| -> IResult<Span, Vec<Repeat>> {
         let parse_repeat = repeat_parser(separators, lenient_segment_separators);
         separated_list0_cap(char(separators.repeat), parse_repeat, 1)(s)
     }
 }
 
-fn field_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Field> {
+fn field_parser(
+    separators: Separators,
+    lenient_segment_separators: bool,
+) -> impl Fn(Span) -> IResult<Span, Field> {
     move |s: Span| -> IResult<Span, Field> {
         let parse_repeats = repeats_parser(separators, lenient_segment_separators);
 
@@ -184,7 +202,10 @@ fn field_parser(separators: Separators, lenient_segment_separators: bool) -> imp
     }
 }
 
-fn fields_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, Vec<Field>> {
+fn fields_parser(
+    separators: Separators,
+    lenient_segment_separators: bool,
+) -> impl Fn(Span) -> IResult<Span, Vec<Field>> {
     move |s: Span| -> IResult<Span, Vec<Field>> {
         let parse_field = field_parser(separators, lenient_segment_separators);
         separated_list0_cap(char(separators.field), parse_field, 20)(s)
@@ -213,7 +234,10 @@ fn parse_msh(s: Span, lenient_segment_separators: bool) -> IResult<Span, Msh> {
     ))
 }
 
-fn segment_parser(separators: Separators, lenient_segment_separators: bool) -> impl Fn(Span) -> IResult<Span, (&str, Segment)> {
+fn segment_parser(
+    separators: Separators,
+    lenient_segment_separators: bool,
+) -> impl Fn(Span) -> IResult<Span, (&str, Segment)> {
     move |s: Span| -> IResult<Span, (&str, Segment)> {
         let (s, start_pos) = position(s)?;
 

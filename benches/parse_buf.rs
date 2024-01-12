@@ -7,7 +7,8 @@ fn criterion_benchmark(c: &mut Criterion) {
             .replace("\r\n", "\r")
             .replace('\n', "\r");
         b.iter(|| {
-            ParsedMessageOwned::parse(black_box(message.clone()), false).expect("can parse message");
+            ParsedMessageOwned::parse(black_box(message.clone()), false)
+                .expect("can parse message");
         })
     });
 }

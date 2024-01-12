@@ -98,8 +98,14 @@ impl<'s> std::fmt::Display for LocatedData<'s> {
 
 impl<'s> ParsedMessage<'s> {
     /// Parse a string to obtain the underlying message
-    pub fn parse(source: &'s str, lenient_segment_separators: bool) -> Result<ParsedMessage<'s>, ParseError> {
-        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(source), lenient_segment_separators)?;
+    pub fn parse(
+        source: &'s str,
+        lenient_segment_separators: bool,
+    ) -> Result<ParsedMessage<'s>, ParseError> {
+        let (_, message) = crate::parser::parse_message(
+            crate::parser::Span::new(source),
+            lenient_segment_separators,
+        )?;
         Ok(message)
     }
 
@@ -499,9 +505,15 @@ impl<'s> ParsedMessage<'s> {
 
 impl ParsedMessageOwned {
     /// Parse a string to obtain the underlying message
-    pub fn parse<'s, S: ToString + 's>(source: S, lenient_segment_separators: bool) -> Result<ParsedMessageOwned, ParseError> {
+    pub fn parse<'s, S: ToString + 's>(
+        source: S,
+        lenient_segment_separators: bool,
+    ) -> Result<ParsedMessageOwned, ParseError> {
         let source = source.to_string();
-        let (_, message) = crate::parser::parse_message(crate::parser::Span::new(&source), lenient_segment_separators)?;
+        let (_, message) = crate::parser::parse_message(
+            crate::parser::Span::new(&source),
+            lenient_segment_separators,
+        )?;
         Ok(message.into())
     }
 
@@ -1073,7 +1085,8 @@ mod test {
         let message = ParsedMessage::parse(raw_message, true).expect("can parse message");
         let message_from = ParsedMessageOwned::from(message);
 
-        let message_direct = ParsedMessageOwned::parse(raw_message, true).expect("can parse message");
+        let message_direct =
+            ParsedMessageOwned::parse(raw_message, true).expect("can parse message");
 
         assert_eq!(message_from, message_direct);
     }
@@ -1091,9 +1104,10 @@ mod test {
 
     #[test]
     fn message_and_message_buf_have_the_same_errors() {
-        let err = ParsedMessage::parse("MSH|^~\\&$", false).expect_err("ParsedMessage parsing to fail");
-        let err_buf =
-            ParsedMessageOwned::parse("MSH|^~\\&$", false).expect_err("ParsedMessage parsing to fail");
+        let err =
+            ParsedMessage::parse("MSH|^~\\&$", false).expect_err("ParsedMessage parsing to fail");
+        let err_buf = ParsedMessageOwned::parse("MSH|^~\\&$", false)
+            .expect_err("ParsedMessage parsing to fail");
         assert_eq!(err, err_buf);
         assert_eq!(err.to_string(), err_buf.to_string());
     }
