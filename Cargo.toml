@@ -1,7 +1,7 @@
 [package]
 name = "hl7-parser"
 authors = ["Kenton Hamaluik <kenton@hamaluik.ca>"]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Parses the structure of HL7v2 messages, but does not validate the correctness of the messages."
 documentation = "https://docs.rs/hl7-parser"
@@ -20,11 +20,14 @@ nom = "7"
 nom_locate = "4"
 serde = { version = "1", features = ["derive"], optional = true }
 thiserror = "1"
-time = "0.3"
+time = { version = "0.3", optional = true }
+chrono = { version = "0.4", optional = true }
 
 [features]
-default = ["serde"]
+default = []
 serde = ["dep:serde"]
+time = ["dep:time"]
+chrono = ["dep:chrono"]
 
 [dev-dependencies]
 criterion = "0.4"
@@ -60,3 +63,7 @@ debug = true
 
 [profile.bench]
 debug = true
+
+[package.metadata.docs.rs]
+all-features = true
+

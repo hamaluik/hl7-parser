@@ -48,6 +48,7 @@ impl<'s> From<nom::Err<nom::error::Error<Span<'s>>>> for ParseError {
 /// Errors that can occur when parsing timestamps
 #[derive(Debug, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(any(feature = "time", feature = "chrono"))]
 pub enum TimeParseError {
     /// The parsing failed for some reason parsing field `this.0`
     #[error("Failed to parse timestamp: parsing {0} failed.")]

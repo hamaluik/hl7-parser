@@ -1,4 +1,5 @@
 use crate::{parser::Span, TimeParseError};
+use chrono::{DateTime, FixedOffset, LocalResult, NaiveDate, NaiveDateTime, NaiveTime};
 use nom::{
     bytes::complete::{tag, take_while_m_n},
     character::complete::one_of,
@@ -6,18 +7,19 @@ use nom::{
     sequence::preceded,
     IResult,
 };
-use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 /// Parse an HL7 timestamp
 ///
 /// Any missing components from the timestamp will be substituted with the first of that time
-/// period (for example, if the month is not provided, it will default to [time::Month::January],
+/// period (for example, if the month is not provided, it will default to 1 (January),
 /// hour will default to `0`, offset will default to _UTC_)
 ///
 /// # Arguments
 ///
 /// * `s` - A string slice representing the HL7 timestamp (format: `YYYY[MM[DD[HH[MM[SS[.S[S[S[S]]]]]]]]][+/-ZZZZ]`)
-pub fn parse_timestamp_time<'s>(s: &'s str) -> Result<OffsetDateTime, TimeParseError> {
+pub fn parse_timestamp_chrono<'s>(
+    s: &'s str,
+) -> Result<LocalResult<DateTime<FixedOffset>>, TimeParseError> {
     fn is_decimal_digit(c: char) -> bool {
         c.is_ascii_digit()
     }
@@ -54,24 +56,10 @@ pub fn parse_timestamp_time<'s>(s: &'s str) -> Result<OffsetDateTime, TimeParseE
     let (_, offset_minutes) =
         opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("offset minutes"))?;
 
-    let month = match month.unwrap_or(1) {
-        1 => Month::January,
-        2 => Month::February,
-        3 => Month::March,
-        4 => Month::April,
-        5 => Month::May,
-        6 => Month::June,
-        7 => Month::July,
-        8 => Month::August,
-        9 => Month::September,
-        10 => Month::October,
-        11 => Month::November,
-        12 => Month::December,
-        _ => return Err(TimeParseError::InvalidComponentRange("month")),
-    };
+    let month = month.unwrap_or(1);
     let day = day.unwrap_or(1);
-    let date = Date::from_calendar_date(year as i32, month, day as u8)
-        .map_err(|e| TimeParseError::InvalidComponentRange(e.name()))?;
+    let date = NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32)
+        .ok_or(TimeParseError::InvalidComponentRange("date does not exist"))?;
 
     let hour = hour.unwrap_or(0);
     let minute = minute.unwrap_or(0);
@@ -87,114 +75,128 @@ pub fn parse_timestamp_time<'s>(s: &'s str) -> Result<OffsetDateTime, TimeParseE
     };
     let microseconds = second_fracs
         .fragment()
-        .parse::<usize>()
+        .parse::<u32>()
         .expect("can parse fractional seconds as number")
         * fracs_multiplier;
-    let time = Time::from_hms_micro(hour as u8, minute as u8, second as u8, microseconds as u32)
-        .map_err(|e| TimeParseError::InvalidComponentRange(e.name()))?;
+    let time =
+        NaiveTime::from_hms_micro_opt(hour as u32, minute as u32, second as u32, microseconds)
+            .ok_or(TimeParseError::InvalidComponentRange("time does not exist"))?;
 
     let offset_dir = match offset_dir.unwrap_or('+') {
         '-' => -1,
         _ => 1,
     };
-    let offset_hours = offset_hours.unwrap_or(0);
-    let offset_minutes = offset_minutes.unwrap_or(0);
-    let offset_hours = (offset_hours as i8) * offset_dir;
-    let offset_minutes = (offset_minutes as i8) * offset_dir;
-    let offset =
-        UtcOffset::from_hms(offset_hours, offset_minutes, 0).expect("TODO: offset number error");
+    let offset_hours = offset_hours.unwrap_or(0) as i32 * offset_dir;
+    let offset_minutes = offset_minutes.unwrap_or(0) as i32;
+    let offset = FixedOffset::east_opt(offset_hours * 3600 + offset_minutes * 60)
+        .ok_or(TimeParseError::InvalidComponentRange("offset does not exist"))?;
 
-    let datetime = PrimitiveDateTime::new(date, time);
-    let datetime = datetime.assume_offset(offset);
-
+    let datetime = NaiveDateTime::new(date, time);
+    let datetime = datetime.and_local_timezone(offset);
     Ok(datetime)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use chrono::{Datelike, Timelike};
 
     #[test]
     fn can_parse_time_with_offsets() {
         let ts = "20230312195905.1234-0700";
-        let ts = parse_timestamp_time(ts).expect("can parse timestamp");
+        let ts = parse_timestamp_chrono(ts)
+            .expect("can parse timestamp")
+            .earliest()
+            .expect("can convert to datetime");
 
         assert_eq!(ts.year(), 2023);
-        assert_eq!(ts.month(), Month::March);
+        assert_eq!(ts.month(), 3);
         assert_eq!(ts.day(), 12);
         assert_eq!(ts.hour(), 19);
         assert_eq!(ts.minute(), 59);
         assert_eq!(ts.second(), 5);
-        assert_eq!(ts.microsecond(), 123_400);
-        assert_eq!(ts.offset().whole_hours(), -7);
-        assert_eq!(ts.offset().minutes_past_hour(), 0);
+        assert_eq!(ts.nanosecond(), 123_400_000);
+        assert_eq!(ts.offset().local_minus_utc() / 3600, -7);
+        assert_eq!(ts.offset().local_minus_utc() % 3600, 0);
     }
 
     #[test]
     fn can_parse_time_without_offsets() {
         let ts = "20230312195905.1234";
-        let ts = parse_timestamp_time(ts).expect("can parse timestamp");
+        let ts = parse_timestamp_chrono(ts)
+            .expect("can parse timestamp")
+            .earliest()
+            .expect("can convert to datetime");
 
         assert_eq!(ts.year(), 2023);
-        assert_eq!(ts.month(), Month::March);
+        assert_eq!(ts.month(), 3);
         assert_eq!(ts.day(), 12);
         assert_eq!(ts.hour(), 19);
         assert_eq!(ts.minute(), 59);
         assert_eq!(ts.second(), 5);
-        assert_eq!(ts.microsecond(), 123_400);
-        assert!(ts.offset().is_utc());
+        assert_eq!(ts.nanosecond(), 123_400_000);
+        assert_eq!(ts.offset().local_minus_utc(), 0);
     }
 
     #[test]
     fn can_parse_time_without_offsets_or_fractional_seconds() {
         let ts = "20230312195905";
-        let ts = parse_timestamp_time(ts).expect("can parse timestamp");
+        let ts = parse_timestamp_chrono(ts)
+            .expect("can parse timestamp")
+            .earliest()
+            .expect("can convert to datetime");
 
         assert_eq!(ts.year(), 2023);
-        assert_eq!(ts.month(), Month::March);
+        assert_eq!(ts.month(), 3);
         assert_eq!(ts.day(), 12);
         assert_eq!(ts.hour(), 19);
         assert_eq!(ts.minute(), 59);
         assert_eq!(ts.second(), 5);
-        assert_eq!(ts.microsecond(), 0);
-        assert!(ts.offset().is_utc());
+        assert_eq!(ts.nanosecond(), 0);
+        assert_eq!(ts.offset().local_minus_utc(), 0);
     }
 
     #[test]
     fn can_parse_time_with_offsets_without_fractional_seconds() {
         let ts = "20230312195905-0700";
-        let ts = parse_timestamp_time(ts).expect("can parse timestamp");
+        let ts = parse_timestamp_chrono(ts)
+            .expect("can parse timestamp")
+            .earliest()
+            .expect("can convert to datetime");
 
         assert_eq!(ts.year(), 2023);
-        assert_eq!(ts.month(), Month::March);
+        assert_eq!(ts.month(), 3);
         assert_eq!(ts.day(), 12);
         assert_eq!(ts.hour(), 19);
         assert_eq!(ts.minute(), 59);
         assert_eq!(ts.second(), 5);
-        assert_eq!(ts.microsecond(), 0);
-        assert_eq!(ts.offset().whole_hours(), -7);
-        assert_eq!(ts.offset().minutes_past_hour(), 0);
+        assert_eq!(ts.nanosecond(), 0);
+        assert_eq!(ts.offset().local_minus_utc() / 3600, -7);
+        assert_eq!(ts.offset().local_minus_utc() % 3600, 0);
     }
 
     #[test]
     fn can_parse_time_with_only_year() {
         let ts = "2023";
-        let ts = parse_timestamp_time(ts).expect("can parse timestamp");
+        let ts = parse_timestamp_chrono(ts)
+            .expect("can parse timestamp")
+            .earliest()
+            .expect("can convert to datetime");
 
         assert_eq!(ts.year(), 2023);
-        assert_eq!(ts.month(), Month::January);
+        assert_eq!(ts.month(), 1);
         assert_eq!(ts.day(), 1);
         assert_eq!(ts.hour(), 0);
         assert_eq!(ts.minute(), 0);
         assert_eq!(ts.second(), 00);
-        assert_eq!(ts.microsecond(), 0);
-        assert!(ts.offset().is_utc());
+        assert_eq!(ts.nanosecond(), 0);
+        assert_eq!(ts.offset().local_minus_utc(), 0);
     }
 
     #[test]
     fn cant_parse_bad_timestamps() {
-        assert!(parse_timestamp_time("23").is_err());
-        assert!(parse_timestamp_time("abcd").is_err());
-        assert!(parse_timestamp_time("20230230").is_err());
+        assert!(parse_timestamp_chrono("23").is_err());
+        assert!(parse_timestamp_chrono("abcd").is_err());
+        assert!(parse_timestamp_chrono("20230230").is_err());
     }
 }

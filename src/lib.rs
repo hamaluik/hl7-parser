@@ -59,20 +59,35 @@
 //! ## Parsing ParsedMessage Timestamps
 //!
 //! ```
-//! use hl7_parser::parse_time;
+//! # #[cfg(feature = "chrono")]
+//! # use chrono::prelude::*;
+//! # #[cfg(feature = "chrono")]
+//! # use hl7_parser::parse_timestamp_chrono;
+//! # #[cfg(feature = "time")]
+//! # use hl7_parser::parse_timestamp_time;
 //!
+//! #[cfg(feature = "chrono")]
 //! let ts = "20230312195905-0700";
-//! let ts = parse_time(ts).expect("can parse timestamp");
+//! #[cfg(feature = "chrono")]
+//! let ts = parse_timestamp_chrono(ts)
+//!     .expect("can parse timestamp")
+//!     .earliest()
+//!     .expect("can convert to datetime");
+//!
+//! #[cfg(feature = "time")]
+//! let ts = "20230312195905-0700";
+//! #[cfg(feature = "time")]
+//! let ts = parse_timestamp_time(ts).expect("can parse timestamp");
 //!
 //! assert_eq!(ts.year(), 2023);
+//! #[cfg(all(feature = "chrono", not(feature = "time")))]
+//! assert_eq!(ts.month(), 3);
+//! #[cfg(feature = "time")]
 //! assert_eq!(ts.month(), time::Month::March);
 //! assert_eq!(ts.day(), 12);
 //! assert_eq!(ts.hour(), 19);
 //! assert_eq!(ts.minute(), 59);
 //! assert_eq!(ts.second(), 05);
-//! assert_eq!(ts.microsecond(), 0);
-//! assert_eq!(ts.offset().whole_hours(), -7);
-//! assert_eq!(ts.offset().minutes_past_hour(), 0);
 //! ```
 //!
 //! ## Decoding Encoded Strings
@@ -87,6 +102,8 @@
 //! );
 //! ```
 
+#[cfg(feature = "chrono")]
+mod chrono_parser;
 mod component;
 mod error;
 mod field;
@@ -97,8 +114,11 @@ mod query;
 mod repeat;
 mod segment;
 mod sub_component;
+#[cfg(feature = "time")]
 mod time_parser;
 
+#[cfg(feature = "chrono")]
+pub use chrono_parser::parse_timestamp_chrono;
 pub use component::*;
 pub use error::*;
 pub use field::*;
@@ -108,4 +128,5 @@ pub use query::*;
 pub use repeat::*;
 pub use segment::*;
 pub use sub_component::*;
-pub use time_parser::*;
+#[cfg(feature = "time")]
+pub use time_parser::parse_timestamp_time;
