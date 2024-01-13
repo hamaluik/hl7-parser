@@ -328,6 +328,11 @@ mod tests {
     }
 
     #[test]
+    fn cant_parse_invalid_separators() {
+        parse_separators(Span::new("asdf")).expect_err("can't parse empty separators");
+    }
+
+    #[test]
     fn can_parse_sub_components() {
         let parse_sub_components = sub_components_parser(Separators::default(), false);
 
