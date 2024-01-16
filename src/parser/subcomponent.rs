@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{Separators, Subcomponent};
 use nom::{
     branch::alt,
@@ -26,7 +28,7 @@ fn subcomponent_parser<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Sub
 
     let (i, v): (&str, &str) = escaped(none_of(&sep[..]), seps.escape, one_of(&sep[..]))(i)?;
 
-    Ok((i, Subcomponent { value: v }))
+    Ok((i, Subcomponent { value: Cow::Borrowed(v)}))
 }
 
 #[cfg(test)]
@@ -39,9 +41,8 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo";
-        let expected = Subcomponent { value: "foo" };
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.value, "foo");
     }
 
     #[test]
@@ -49,19 +50,16 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo^bar";
-        let expected = Subcomponent { value: "foo" };
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.value, "foo");
 
         let input = "foo|bar";
-        let expected = Subcomponent { value: "foo" };
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.value, "foo");
 
         let input = "foo\rbar";
-        let expected = Subcomponent { value: "foo" };
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.value, "foo");
     }
 
     #[test]
@@ -69,15 +67,11 @@ mod tests {
         let separators = Separators::default();
 
         let input = r"foo|bar\baz^qux";
-        let expected = Subcomponent { value: "foo" };
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.value, "foo");
 
         let input = r"foo\|bar\\baz\^qux";
-        let expected = Subcomponent {
-            value: r"foo\|bar\\baz\^qux",
-        };
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.value, r"foo\|bar\\baz\^qux");
     }
 }

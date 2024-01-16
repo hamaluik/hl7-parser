@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::field::field;
 use crate::{Field, Separators, Segment};
 use nom::{
@@ -50,12 +52,12 @@ fn parse_msh<'i>(i: &'i str) -> IResult<&'i str, MSH<'i>> {
     let (i, (sep_src, seps)) = consumed(separators(f.chars().next().expect("char 0: field")))(i)?;
     let (i, mut fields) = preceded(opt(char(seps.field)), separated_list0(char(seps.field), field(seps)))(i)?;
     fields.insert(0, Field {
-        value: sep_src,
+        value: Cow::Borrowed(sep_src),
         repeats: vec![],
         components: vec![],
     });
     fields.insert(0, Field {
-        value: f,
+        value: Cow::Borrowed(f),
         repeats: vec![],
         components: vec![],
     });
@@ -71,7 +73,7 @@ fn parse_msh<'i>(i: &'i str) -> IResult<&'i str, MSH<'i>> {
 
 impl<'i> From<MSH<'i>> for Segment<'i> {
     fn from(value: MSH<'i>) -> Self {
-        Segment { name: "MSH", fields: value.fields }
+        Segment { name: Cow::Borrowed("MSH"), fields: value.fields }
     }
 }
 
@@ -93,17 +95,17 @@ mod tests {
             },
             fields: vec![
                 Field {
-                    value: "|",
+                    value: Cow::Borrowed("|"),
                     repeats: vec![],
                     components: vec![],
                 },
                 Field {
-                    value: r"^~\&",
+                    value: Cow::Borrowed(r"^~\&"),
                     repeats: vec![],
                     components: vec![],
                 },
                 Field {
-                    value: "",
+                    value: Cow::Borrowed(""),
                     repeats: vec![],
                     components: vec![],
                 },
@@ -126,22 +128,22 @@ mod tests {
             },
             fields: vec![
                 Field {
-                    value: "|",
+                    value: Cow::Borrowed("|"),
                     repeats: vec![],
                     components: vec![],
                 },
                 Field {
-                    value: r"^~\&",
+                    value: Cow::Borrowed(r"^~\&"),
                     repeats: vec![],
                     components: vec![],
                 },
                 Field {
-                    value: "AccMgr",
+                    value: Cow::Borrowed("AccMgr"),
                     repeats: vec![],
                     components: vec![],
                 },
                 Field {
-                    value: "1",
+                    value: Cow::Borrowed("1"),
                     repeats: vec![],
                     components: vec![],
                 },

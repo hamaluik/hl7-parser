@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::field::field;
 use crate::{Segment, Field, Separators};
 use nom::{
@@ -25,7 +27,7 @@ fn parse_segment<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Segment<'
     let (i, name) = terminated(segment_name(), char(seps.field))(i)?;
     let (i, v) = separated_list0(char(seps.field), field(seps))(i)?;
 
-    Ok((i, Segment { name, fields: v }))
+    Ok((i, Segment { name: Cow::Borrowed(name), fields: v }))
 }
 
 #[cfg(test)]
@@ -40,20 +42,20 @@ mod tests {
 
         let input = "MSH|foo|bar|baz";
         let expected = Segment {
-            name: "MSH",
+            name: Cow::Borrowed("MSH"),
             fields: vec![
                 Field {
-                    value: "foo",
+                    value: Cow::Borrowed("foo"),
                     repeats: vec![],
                     components: vec![],
                 },
                 Field {
-                    value: "bar",
+                    value: Cow::Borrowed("bar"),
                     repeats: vec![],
                     components: vec![],
                 },
                 Field {
-                    value: "baz",
+                    value: Cow::Borrowed("baz"),
                     repeats: vec![],
                     components: vec![],
                 },
@@ -69,20 +71,20 @@ mod tests {
 
         let input = "DB1|foo|bar|baz";
         let expected = Segment {
-            name: "DB1",
+            name: Cow::Borrowed("DB1"),
             fields: vec![
                 Field {
-                    value: "foo",
+                    value: Cow::Borrowed("foo"),
                     repeats: vec![],
                     components: vec![],
                 },
                 Field {
-                    value: "bar",
+                    value: Cow::Borrowed("bar"),
                     repeats: vec![],
                     components: vec![],
                 },
                 Field {
-                    value: "baz",
+                    value: Cow::Borrowed("baz"),
                     repeats: vec![],
                     components: vec![],
                 },

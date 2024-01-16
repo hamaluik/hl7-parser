@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::repeat::repeat;
 use crate::{Field, Repeat, Separators};
 use nom::{
@@ -27,7 +29,7 @@ fn parse_field<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Field<'i>> 
         }
     } else {
         Field {
-            value: subc_src,
+            value: Cow::Borrowed(subc_src),
             repeats: v,
             components: vec![],
         }
@@ -47,7 +49,7 @@ mod tests {
 
         let input = "foo";
         let expected = Field {
-            value: "foo",
+            value: Cow::Borrowed("foo"),
             repeats: vec![],
             components: vec![],
         };
@@ -61,19 +63,19 @@ mod tests {
 
         let input = "foo^bar^baz";
         let expected = Field {
-            value: "foo^bar^baz",
+            value: Cow::Borrowed("foo^bar^baz"),
             repeats: vec![],
             components: vec![
                 Component {
-                    value: "foo",
+                    value: Cow::Borrowed("foo"),
                     subcomponents: vec![],
                 },
                 Component {
-                    value: "bar",
+                    value: Cow::Borrowed("bar"),
                     subcomponents: vec![],
                 },
                 Component {
-                    value: "baz",
+                    value: Cow::Borrowed("baz"),
                     subcomponents: vec![],
                 },
             ],
@@ -88,14 +90,14 @@ mod tests {
 
         let input = "foo~bar~baz";
         let expected = Field {
-            value: "foo",
+            value: Cow::Borrowed("foo"),
             repeats: vec![
                 Repeat {
-                    value: "bar",
+                    value: Cow::Borrowed("bar"),
                     components: vec![],
                 },
                 Repeat {
-                    value: "baz",
+                    value: Cow::Borrowed("baz"),
                     components: vec![],
                 },
             ],
@@ -111,27 +113,27 @@ mod tests {
 
         let input = "foo^bar~baz^qux";
         let expected = Field {
-            value: "foo^bar",
+            value: Cow::Borrowed("foo^bar"),
             repeats: vec![Repeat {
-                value: "baz^qux",
+                value: Cow::Borrowed("baz^qux"),
                 components: vec![
                     Component {
-                        value: "baz",
+                        value: Cow::Borrowed("baz"),
                         subcomponents: vec![],
                     },
                     Component {
-                        value: "qux",
+                        value: Cow::Borrowed("qux"),
                         subcomponents: vec![],
                     },
                 ],
             }],
             components: vec![
                 Component {
-                    value: "foo",
+                    value: Cow::Borrowed("foo"),
                     subcomponents: vec![],
                 },
                 Component {
-                    value: "bar",
+                    value: Cow::Borrowed("bar"),
                     subcomponents: vec![],
                 },
             ],

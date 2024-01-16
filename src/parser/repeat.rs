@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::component::component;
 use crate::{Component, Repeat, Separators};
 use nom::{
@@ -18,13 +20,14 @@ fn parse_repeat<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Repeat<'i>
     let (i, (subc_src, v)) = consumed(separated_list0(char(seps.component), component(seps)))(i)?;
 
     let v = if v.len() == 1 {
+        let mut v = v;
         Repeat {
-            value: v[0].value,
+            value: v.remove(0).value,
             components: vec![],
         }
     } else {
         Repeat {
-            value: subc_src,
+            value: Cow::Borrowed(subc_src),
             components: v,
         }
     };
@@ -43,7 +46,7 @@ mod tests {
 
         let input = "foo";
         let expected = Repeat {
-            value: "foo",
+            value: Cow::Borrowed("foo"),
             components: vec![],
         };
         let actual = parse_repeat(input, separators).unwrap().1;
@@ -56,14 +59,14 @@ mod tests {
 
         let input = "foo^bar";
         let expected = Repeat {
-            value: "foo^bar",
+            value: Cow::Borrowed("foo^bar"),
             components: vec![
                 Component {
-                    value: "foo",
+                    value: Cow::Borrowed("foo"),
                     subcomponents: vec![],
                 },
                 Component {
-                    value: "bar",
+                    value: Cow::Borrowed("bar"),
                     subcomponents: vec![],
                 },
             ],
@@ -78,7 +81,7 @@ mod tests {
 
         let input = r"foo\^bar";
         let expected = Repeat {
-            value: r"foo\^bar",
+            value: Cow::Borrowed(r"foo\^bar"),
             components: vec![],
         };
         let actual = parse_repeat(input, separators).unwrap().1;
