@@ -1,7 +1,7 @@
 [package]
 name = "hl7-parser"
 authors = ["Kenton Hamaluik <kenton@hamaluik.ca>"]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Parses the structure of HL7v2 messages, but does not validate the correctness of the messages."
 documentation = "https://docs.rs/hl7-parser"
@@ -33,36 +33,37 @@ chrono = ["dep:chrono"]
 criterion = "0.4"
 serde = "1"
 serde_json = "1"
+pretty_assertions_sorted = "1.2"
 
-[[bench]]
-name = "parse"
-harness = false
-
-[[bench]]
-name = "parse_buf"
-harness = false
-
-[[bench]]
-name = "decode"
-harness = false
-
-[[bench]]
-name = "locate"
-harness = false
-
-[[bench]]
-name = "query"
-harness = false
-
-[[bench]]
-name = "timestamp"
-harness = false
-
-[profile.release]
-debug = true
-
-[profile.bench]
-debug = true
+# [[bench]]
+# name = "parse"
+# harness = false
+#
+# [[bench]]
+# name = "parse_buf"
+# harness = false
+#
+# [[bench]]
+# name = "decode"
+# harness = false
+#
+# [[bench]]
+# name = "locate"
+# harness = false
+#
+# [[bench]]
+# name = "query"
+# harness = false
+#
+# [[bench]]
+# name = "timestamp"
+# harness = false
+#
+# [profile.release]
+# debug = true
+#
+# [profile.bench]
+# debug = true
 
 [package.metadata.docs.rs]
 all-features = true
