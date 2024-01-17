@@ -1,13 +1,10 @@
 use std::borrow::Cow;
 
-use crate::{Separators, Subcomponent};
+use crate::{message::Separators, Subcomponent};
 use nom::{
-    branch::alt,
-    bytes::complete::{escaped, tag, take_while},
+    bytes::complete::escaped,
     character::complete::{none_of, one_of},
-    combinator::map,
-    sequence::terminated,
-    IResult, Parser,
+    IResult,
 };
 
 pub fn subcomponent<'i>(
@@ -28,7 +25,12 @@ fn subcomponent_parser<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Sub
 
     let (i, v): (&str, &str) = escaped(none_of(&sep[..]), seps.escape, one_of(&sep[..]))(i)?;
 
-    Ok((i, Subcomponent { value: Cow::Borrowed(v)}))
+    Ok((
+        i,
+        Subcomponent {
+            value: Cow::Borrowed(v),
+        },
+    ))
 }
 
 #[cfg(test)]

@@ -1,14 +1,10 @@
 use std::borrow::Cow;
 
 use super::field::field;
-use crate::{Segment, Field, Separators};
+use crate::{Segment, Separators};
 use nom::{
-    branch::alt,
-    bytes::complete::{escaped, tag, take_while, take_while_m_n},
-    character::complete::{alpha1, char, none_of, one_of},
-    multi::{separated_list0, count},
-    sequence::terminated,
-    IResult,
+    bytes::complete::take_while_m_n, character::complete::char, multi::separated_list0,
+    sequence::terminated, IResult,
 };
 
 pub fn segment<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, Segment<'i>> {
@@ -27,13 +23,20 @@ fn parse_segment<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Segment<'
     let (i, name) = terminated(segment_name(), char(seps.field))(i)?;
     let (i, v) = separated_list0(char(seps.field), field(seps))(i)?;
 
-    Ok((i, Segment { name: Cow::Borrowed(name), fields: v }))
+    Ok((
+        i,
+        Segment {
+            name: Cow::Borrowed(name),
+            fields: v,
+        },
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Component, Repeat};
+    use std::borrow::Cow;
+    use crate::{Field, message::Separators, Segment};
     use pretty_assertions_sorted::assert_eq;
 
     #[test]
@@ -140,11 +143,25 @@ mod tests {
         assert_eq!(actual.fields[0].repeats[0].components[0].value, "qux");
         assert_eq!(actual.fields[0].repeats[0].components[1].value, "quux");
         assert_eq!(actual.fields[0].repeats[0].components[2].value, "quuz");
-        assert_eq!(actual.fields[0].repeats[0].components[0].subcomponents.len(), 0);
-        assert_eq!(actual.fields[0].repeats[0].components[1].subcomponents.len(), 0);
-        assert_eq!(actual.fields[0].repeats[0].components[2].subcomponents.len(), 0);
+        assert_eq!(
+            actual.fields[0].repeats[0].components[0]
+                .subcomponents
+                .len(),
+            0
+        );
+        assert_eq!(
+            actual.fields[0].repeats[0].components[1]
+                .subcomponents
+                .len(),
+            0
+        );
+        assert_eq!(
+            actual.fields[0].repeats[0].components[2]
+                .subcomponents
+                .len(),
+            0
+        );
         assert_eq!(actual.fields[1].value, "asdf");
         assert_eq!(actual.fields[2].value, "");
     }
 }
-

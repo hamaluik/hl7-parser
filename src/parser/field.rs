@@ -1,16 +1,8 @@
 use std::borrow::Cow;
 
 use super::repeat::repeat;
-use crate::{Field, Repeat, Separators};
-use nom::{
-    branch::alt,
-    bytes::complete::{escaped, tag, take_while},
-    character::complete::{alpha1, char, none_of, one_of},
-    combinator::consumed,
-    multi::separated_list0,
-    sequence::terminated,
-    IResult,
-};
+use crate::{Field, Separators};
+use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
 
 pub fn field<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, Field<'i>> {
     move |i| parse_field(i, seps)

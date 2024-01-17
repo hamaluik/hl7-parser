@@ -1,15 +1,9 @@
 use crate::{
     parser::{msh::msh, segment::segment},
-    Message, Segment, Separators,
+    Message, Segment,
 };
 use nom::{
-    branch::alt,
-    bytes::complete::{escaped, tag, take_while},
-    character::complete::{alpha1, char, none_of, one_of},
-    combinator::{consumed, opt},
-    multi::separated_list0,
-    sequence::{preceded, terminated},
-    IResult,
+    character::complete::char, combinator::opt, multi::separated_list0, sequence::preceded, IResult,
 };
 
 pub fn message<'i>() -> impl FnMut(&'i str) -> IResult<&'i str, Message<'i>> {
@@ -53,4 +47,3 @@ mod tests {
         assert_eq!(message.segments[1].fields[4].value, "CHARRIS");
     }
 }
-

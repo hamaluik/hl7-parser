@@ -1,16 +1,8 @@
 use std::borrow::Cow;
 
 use super::component::component;
-use crate::{Component, Repeat, Separators};
-use nom::{
-    branch::alt,
-    bytes::complete::{escaped, tag, take_while},
-    character::complete::{alpha1, char, none_of, one_of},
-    combinator::consumed,
-    multi::separated_list0,
-    sequence::terminated,
-    IResult,
-};
+use crate::{Repeat, Separators};
+use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
 
 pub fn repeat<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, Repeat<'i>> {
     move |i| parse_repeat(i, seps)

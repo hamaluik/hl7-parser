@@ -1,14 +1,14 @@
 use std::borrow::Cow;
 
 use super::field::field;
-use crate::{Field, Separators, Segment};
+use crate::{Field, Segment, Separators};
 use nom::{
-    branch::alt,
-    bytes::complete::{escaped, tag, take_while, take_while_m_n},
-    character::complete::{alpha1, char, none_of, one_of},
-    multi::{count, separated_list0},
-    sequence::{terminated, preceded},
-    IResult, combinator::{consumed, opt}
+    bytes::complete::{tag, take_while_m_n},
+    character::complete::char,
+    combinator::{consumed, opt},
+    multi::separated_list0,
+    sequence::preceded,
+    IResult,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,15 +33,13 @@ fn separators<'i>(field: char) -> impl FnMut(&'i str) -> IResult<&'i str, Separa
     move |i| {
         let (i, seps) = take_while_m_n(4, 4, |c: char| c.is_ascii())(i)?;
         let mut chars = seps.chars();
-        let seps = 
-        Separators {
+        let seps = Separators {
             field,
             component: chars.next().expect("char 0: component separator"),
             repetition: chars.next().expect("char 1: repetition separator"),
             escape: chars.next().expect("char 2: escape"),
             subcomponent: chars.next().expect("char 3: subcomponent separator"),
-        }
-;
+        };
         Ok((i, seps))
     }
 }
@@ -50,17 +48,26 @@ fn parse_msh<'i>(i: &'i str) -> IResult<&'i str, MSH<'i>> {
     let (i, _) = msh_name()(i)?;
     let (i, f) = field_separator()(i)?;
     let (i, (sep_src, seps)) = consumed(separators(f.chars().next().expect("char 0: field")))(i)?;
-    let (i, mut fields) = preceded(opt(char(seps.field)), separated_list0(char(seps.field), field(seps)))(i)?;
-    fields.insert(0, Field {
-        value: Cow::Borrowed(sep_src),
-        repeats: vec![],
-        components: vec![],
-    });
-    fields.insert(0, Field {
-        value: Cow::Borrowed(f),
-        repeats: vec![],
-        components: vec![],
-    });
+    let (i, mut fields) = preceded(
+        opt(char(seps.field)),
+        separated_list0(char(seps.field), field(seps)),
+    )(i)?;
+    fields.insert(
+        0,
+        Field {
+            value: Cow::Borrowed(sep_src),
+            repeats: vec![],
+            components: vec![],
+        },
+    );
+    fields.insert(
+        0,
+        Field {
+            value: Cow::Borrowed(f),
+            repeats: vec![],
+            components: vec![],
+        },
+    );
 
     Ok((
         i,
@@ -73,7 +80,10 @@ fn parse_msh<'i>(i: &'i str) -> IResult<&'i str, MSH<'i>> {
 
 impl<'i> From<MSH<'i>> for Segment<'i> {
     fn from(value: MSH<'i>) -> Self {
-        Segment { name: Cow::Borrowed("MSH"), fields: value.fields }
+        Segment {
+            name: Cow::Borrowed("MSH"),
+            fields: value.fields,
+        }
     }
 }
 

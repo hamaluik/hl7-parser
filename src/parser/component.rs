@@ -1,15 +1,8 @@
 use std::borrow::Cow;
 
 use super::subcomponent::subcomponent;
-use crate::{Component, Separators, Subcomponent};
-use nom::{
-    branch::alt,
-    bytes::complete::{escaped, tag, take_while},
-    character::complete::{alpha1, char, none_of, one_of},
-    multi::separated_list0,
-    sequence::terminated,
-    IResult, combinator::consumed,
-};
+use crate::{Component, Separators};
+use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
 
 pub fn component<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, Component<'i>> {
     move |i| parse_component(i, seps)
@@ -45,7 +38,10 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo";
-        let expected = Component { value: Cow::Borrowed("foo"), subcomponents: vec![] };
+        let expected = Component {
+            value: Cow::Borrowed("foo"),
+            subcomponents: vec![],
+        };
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -57,7 +53,14 @@ mod tests {
         let input = "foo&bar";
         let expected = Component {
             value: Cow::Borrowed("foo&bar"),
-            subcomponents: vec![Subcomponent { value: Cow::Borrowed("foo") }, Subcomponent { value: Cow::Borrowed("bar") }],
+            subcomponents: vec![
+                Subcomponent {
+                    value: Cow::Borrowed("foo"),
+                },
+                Subcomponent {
+                    value: Cow::Borrowed("bar"),
+                },
+            ],
         };
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
@@ -81,7 +84,10 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo\rbar";
-        let expected = Component { value: Cow::Borrowed("foo"), subcomponents: vec![] };
+        let expected = Component {
+            value: Cow::Borrowed("foo"),
+            subcomponents: vec![],
+        };
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -91,14 +97,24 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo|bar";
-        let expected = Component { value: Cow::Borrowed("foo"), subcomponents: vec![] };
+        let expected = Component {
+            value: Cow::Borrowed("foo"),
+            subcomponents: vec![],
+        };
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
 
         let input = "foo&bar|baz";
         let expected = Component {
             value: Cow::Borrowed("foo&bar"),
-            subcomponents: vec![Subcomponent { value: Cow::Borrowed("foo") }, Subcomponent { value: Cow::Borrowed("bar") }],
+            subcomponents: vec![
+                Subcomponent {
+                    value: Cow::Borrowed("foo"),
+                },
+                Subcomponent {
+                    value: Cow::Borrowed("bar"),
+                },
+            ],
         };
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
