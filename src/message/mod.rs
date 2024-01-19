@@ -1,2 +1,4 @@
 mod separators;
-pub use separators::Separators;
+pub use separators::*;
+mod subcomponent;
+pub use subcomponent::*;

@@ -29,7 +29,7 @@ fn parse_component<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Compone
 
 #[cfg(test)]
 mod tests {
-    use crate::Subcomponent;
+    use crate::message::Subcomponent;
 
     use super::*;
 

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{message::Separators, Subcomponent};
+use crate::message::{Separators, Subcomponent};
 use nom::{
     bytes::complete::escaped,
     character::complete::{none_of, one_of},
