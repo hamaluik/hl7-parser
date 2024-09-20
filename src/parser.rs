@@ -298,7 +298,7 @@ pub(crate) fn parse_message(
     };
     for (seg_id, seg) in segs.into_iter() {
         if segments.contains_key(seg_id) {
-            let mut segs = segments.remove(seg_id).unwrap();
+            let mut segs = segments.shift_remove(seg_id).unwrap();
             segs.push(seg);
             segments.insert(seg_id, segs);
         } else {
