@@ -58,7 +58,11 @@
 //!
 //! ## Parsing ParsedMessage Timestamps
 //!
+//! Only if the `time` or `chrono` features are enabled.
+//!
 //! ```
+//! #[cfg(any(feature = "time", feature = "chrono"))]
+//! {
 //! # #[cfg(feature = "chrono")]
 //! # use chrono::prelude::*;
 //! # #[cfg(feature = "chrono")]
@@ -88,6 +92,7 @@
 //! assert_eq!(ts.hour(), 19);
 //! assert_eq!(ts.minute(), 59);
 //! assert_eq!(ts.second(), 05);
+//! }
 //! ```
 //!
 //! ## Decoding Encoded Strings
