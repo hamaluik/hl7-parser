@@ -1,6 +1,6 @@
 use crate::{
     parser::{msh::msh, segment::segment},
-    Message, Segment,
+    message::{Message, Segment},
 };
 use nom::{
     character::complete::char, combinator::opt, multi::separated_list0, sequence::preceded, IResult,

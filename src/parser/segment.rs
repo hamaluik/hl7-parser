@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use super::field::field;
-use crate::{Segment, Separators};
+use crate::message::{Segment, Separators};
 use nom::{
     bytes::complete::take_while_m_n, character::complete::char, multi::separated_list0,
     sequence::terminated, IResult,
@@ -36,7 +36,7 @@ fn parse_segment<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Segment<'
 mod tests {
     use super::*;
     use std::borrow::Cow;
-    use crate::{Field, message::Separators, Segment};
+    use crate::message::{Field, Separators, Segment};
     use pretty_assertions_sorted::assert_eq;
 
     #[test]

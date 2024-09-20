@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use super::field::field;
-use crate::{Field, Segment, Separators};
+use crate::message::{Field, Segment, Separators};
 use nom::{
     bytes::complete::{tag, take_while_m_n},
     character::complete::char,

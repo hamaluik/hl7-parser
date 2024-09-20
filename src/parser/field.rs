@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use super::repeat::repeat;
-use crate::{Field, Separators};
+use crate::message::{Field, Separators};
 use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
 
 pub fn field<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, Field<'i>> {
@@ -32,7 +32,7 @@ fn parse_field<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Field<'i>> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Component, Repeat};
+    use crate::message::{Component, Repeat};
     use pretty_assertions_sorted::assert_eq;
 
     #[test]
@@ -58,18 +58,9 @@ mod tests {
             value: Cow::Borrowed("foo^bar^baz"),
             repeats: vec![],
             components: vec![
-                Component {
-                    value: Cow::Borrowed("foo"),
-                    subcomponents: vec![],
-                },
-                Component {
-                    value: Cow::Borrowed("bar"),
-                    subcomponents: vec![],
-                },
-                Component {
-                    value: Cow::Borrowed("baz"),
-                    subcomponents: vec![],
-                },
+                Component::Value(Cow::Borrowed("foo")),
+                Component::Value(Cow::Borrowed("bar")),
+                Component::Value(Cow::Borrowed("baz")),
             ],
         };
         let actual = parse_field(input, separators).unwrap().1;
@@ -109,25 +100,13 @@ mod tests {
             repeats: vec![Repeat {
                 value: Cow::Borrowed("baz^qux"),
                 components: vec![
-                    Component {
-                        value: Cow::Borrowed("baz"),
-                        subcomponents: vec![],
-                    },
-                    Component {
-                        value: Cow::Borrowed("qux"),
-                        subcomponents: vec![],
-                    },
+                    Component::Value(Cow::Borrowed("baz")),
+                    Component::Value(Cow::Borrowed("qux")),
                 ],
             }],
             components: vec![
-                Component {
-                    value: Cow::Borrowed("foo"),
-                    subcomponents: vec![],
-                },
-                Component {
-                    value: Cow::Borrowed("bar"),
-                    subcomponents: vec![],
-                },
+                Component::Value(Cow::Borrowed("foo")),
+                Component::Value(Cow::Borrowed("bar")),
             ],
         };
         let actual = parse_field(input, separators).unwrap().1;

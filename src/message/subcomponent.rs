@@ -1,6 +1,5 @@
-use std::{fmt::Display, borrow::Cow};
-
-use crate::Separators;
+use std::{fmt::Display, borrow::Cow, ops::{Deref, DerefMut}};
+use super::Separators;
 
 /// A subcomponent is the smallest unit of data in an HL7 message.
 /// It is a string that may contain escape sequences to encode the separators.
@@ -12,10 +11,7 @@ use crate::Separators;
 /// the subcomponent is displayed. This allows the subcomponent to be parsed
 /// without allocating a new string for the decoded value.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Subcomponent<'m> {
-    /// The raw value of the subcomponent, without decoding escape sequences
-    pub(crate) value: Cow<'m, str>,
-}
+pub struct Subcomponent<'m>(pub Cow<'m, str>);
 
 impl<'m> Subcomponent<'m> {
     /// Create a new subcomponent with the given value. The value must be a raw
@@ -29,7 +25,7 @@ impl<'m> Subcomponent<'m> {
     /// assert_eq!(subcomponent.raw_value(), r"foo\F\bar");
     /// ```
     pub fn new_raw<V: Into<Cow<'m, str>>>(value: V) -> Self {
-        Self { value: value.into() }
+        Self(value.into())
     }
 
     /// Create a new subcomponent with the given value. The value provided is
@@ -45,9 +41,9 @@ impl<'m> Subcomponent<'m> {
     /// assert_eq!(subcomponent.raw_value(), r"foo\F\bar");
     /// ```
     pub fn new<V: AsRef<str>>(value: V, separators: &Separators) -> Self {
-        Self {
-            value: separators.encode(value.as_ref()).to_string().into(),
-        }
+        Self(
+            separators.encode(value.as_ref()).to_string().into()
+        )
     }
 
     /// Display the subcomponent value, using the separators to decode escape sequences
@@ -67,14 +63,14 @@ impl<'m> Subcomponent<'m> {
     /// ```
     pub fn display(&'m self, separators: &'m Separators) -> SubcomponentDisplay<'m> {
         SubcomponentDisplay {
-            value: &self.value,
+            value: &self,
             separators,
         }
     }
 
     /// Get the raw value of the subcomponent, without decoding escape sequences
     pub fn raw_value(&self) -> &Cow<'m, str> {
-        &self.value
+        &self
     }
 
     /// Get a mutable reference to the raw value of the subcomponent,
@@ -93,7 +89,7 @@ impl<'m> Subcomponent<'m> {
     /// assert_eq!(subcomponent.raw_value(), r"foo\F\bar");
     /// ```
     pub fn raw_value_mut(&mut self) -> &mut Cow<'m, str> {
-        &mut self.value
+        &mut self.0
     }
 }
 
@@ -114,3 +110,17 @@ impl Display for SubcomponentDisplay<'_> {
     }
 }
 
+
+impl<'m> Deref for Subcomponent<'m> {
+    type Target = Cow<'m, str>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'m> DerefMut for Subcomponent<'m> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}

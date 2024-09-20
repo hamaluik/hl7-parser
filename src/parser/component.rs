@@ -1,7 +1,5 @@
-use std::borrow::Cow;
-
 use super::subcomponent::subcomponent;
-use crate::{Component, Separators};
+use crate::message::{Component, Separators};
 use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
 
 pub fn component<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, Component<'i>> {
@@ -14,34 +12,25 @@ fn parse_component<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Compone
 
     let v = if v.len() == 1 {
         let mut v = v;
-        Component {
-            value: v.remove(0).value,
-            subcomponents: vec![],
-        }
+        Component::Value(v.remove(0).0)
     } else {
-        Component {
-            value: Cow::Borrowed(subc_src),
-            subcomponents: v,
-        }
+        Component::Subcomponents(v)
     };
     Ok((i, v))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::message::Subcomponent;
-
     use super::*;
+    use crate::message::{Component, Subcomponent};
+    use std::borrow::Cow;
 
     #[test]
     fn can_parse_component_basic() {
         let separators = Separators::default();
 
         let input = "foo";
-        let expected = Component {
-            value: Cow::Borrowed("foo"),
-            subcomponents: vec![],
-        };
+        let expected = Component::Value(Cow::Borrowed("foo"));
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -51,17 +40,10 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo&bar";
-        let expected = Component {
-            value: Cow::Borrowed("foo&bar"),
-            subcomponents: vec![
-                Subcomponent {
-                    value: Cow::Borrowed("foo"),
-                },
-                Subcomponent {
-                    value: Cow::Borrowed("bar"),
-                },
-            ],
-        };
+        let expected = Component::Subcomponents(vec![
+            Subcomponent(Cow::Borrowed("foo")),
+            Subcomponent(Cow::Borrowed("bar")),
+        ]);
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -71,10 +53,7 @@ mod tests {
         let separators = Separators::default();
 
         let input = r"foo\&bar";
-        let expected = Component {
-            value: Cow::Borrowed(r"foo\&bar"),
-            subcomponents: vec![],
-        };
+        let expected = Component::Value(Cow::Borrowed(r"foo\&bar"));
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -84,10 +63,7 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo\rbar";
-        let expected = Component {
-            value: Cow::Borrowed("foo"),
-            subcomponents: vec![],
-        };
+        let expected = Component::Value(Cow::Borrowed("foo"));
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -97,25 +73,15 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo|bar";
-        let expected = Component {
-            value: Cow::Borrowed("foo"),
-            subcomponents: vec![],
-        };
+        let expected = Component::Value(Cow::Borrowed("foo"));
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
 
         let input = "foo&bar|baz";
-        let expected = Component {
-            value: Cow::Borrowed("foo&bar"),
-            subcomponents: vec![
-                Subcomponent {
-                    value: Cow::Borrowed("foo"),
-                },
-                Subcomponent {
-                    value: Cow::Borrowed("bar"),
-                },
-            ],
-        };
+        let expected = Component::Subcomponents(vec![
+            Subcomponent(Cow::Borrowed("foo")),
+            Subcomponent(Cow::Borrowed("bar")),
+        ]);
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }

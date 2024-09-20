@@ -27,9 +27,7 @@ fn subcomponent_parser<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Sub
 
     Ok((
         i,
-        Subcomponent {
-            value: Cow::Borrowed(v),
-        },
+        Subcomponent(Cow::Borrowed(v)),
     ))
 }
 
@@ -44,7 +42,7 @@ mod tests {
 
         let input = "foo";
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(actual.value, "foo");
+        assert_eq!(actual.0, "foo");
     }
 
     #[test]
@@ -53,15 +51,15 @@ mod tests {
 
         let input = "foo^bar";
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(actual.value, "foo");
+        assert_eq!(actual.0, "foo");
 
         let input = "foo|bar";
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(actual.value, "foo");
+        assert_eq!(actual.0, "foo");
 
         let input = "foo\rbar";
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(actual.value, "foo");
+        assert_eq!(actual.0, "foo");
     }
 
     #[test]
@@ -70,10 +68,10 @@ mod tests {
 
         let input = r"foo|bar\baz^qux";
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(actual.value, "foo");
+        assert_eq!(actual.0, "foo");
 
         let input = r"foo\|bar\\baz\^qux";
         let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(actual.value, r"foo\|bar\\baz\^qux");
+        assert_eq!(actual.0, r"foo\|bar\\baz\^qux");
     }
 }

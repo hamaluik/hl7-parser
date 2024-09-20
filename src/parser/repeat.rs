@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use super::component::component;
-use crate::{Repeat, Separators};
+use crate::message::{Repeat, Separators};
 use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
 
 pub fn repeat<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, Repeat<'i>> {
@@ -28,8 +28,7 @@ fn parse_repeat<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Repeat<'i>
 
 #[cfg(test)]
 mod tests {
-    use crate::Component;
-
+    use crate::message::Component;
     use super::*;
 
     #[test]
@@ -53,14 +52,8 @@ mod tests {
         let expected = Repeat {
             value: Cow::Borrowed("foo^bar"),
             components: vec![
-                Component {
-                    value: Cow::Borrowed("foo"),
-                    subcomponents: vec![],
-                },
-                Component {
-                    value: Cow::Borrowed("bar"),
-                    subcomponents: vec![],
-                },
+                Component::Value(Cow::Borrowed("foo")),
+                Component::Value(Cow::Borrowed("bar")),
             ],
         };
         let actual = parse_repeat(input, separators).unwrap().1;
