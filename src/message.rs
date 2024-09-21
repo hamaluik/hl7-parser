@@ -360,7 +360,7 @@ impl<'s> ParsedMessage<'s> {
     ///
     /// A tuple containing the HL7 segment identifier, 0-based segment repeat number and a
     /// reference to the field. If the segment doesn't contain the cursor, returns `None`
-    pub fn segment_at_cursor(&'s self, cursor: usize) -> Option<(&'s str, usize, &'s Segment)> {
+    pub fn segment_at_cursor(&'s self, cursor: usize, cursor_is_characters: bool) -> Option<(&'s str, usize, &'s Segment)> {
         self.segments
             .iter()
             .find_map(|(id, segs)| segs.segment_at_cursor(cursor).map(|(n, seg)| (*id, n, seg)))
@@ -368,7 +368,14 @@ impl<'s> ParsedMessage<'s> {
 
     /// Deeply locate the cursor by returning the sub-component, component, field, and segment that
     /// the cursor is located in (if any)
-    pub fn locate_cursor(&'s self, cursor: usize) -> LocatedData<'s> {
+    pub fn locate_cursor(&'s self, cursor: usize, cursor_is_characters: bool) -> LocatedData<'s> {
+        eprintln!("searching {} segments", self.segments.len());
+        for (seg_name, segs) in self.segments.iter() {
+            for seg in segs.0.iter() {
+                eprintln!("segment: {} range: {:?}", seg_name, seg.range);
+            }
+        }
+
         let segment = self.segment_at_cursor(cursor);
         let field = segment.and_then(|(_, _, segment)| segment.field_at_cursor(cursor));
         let multi_repeats = field.map(|(_, f)| f.repeats.len() > 1).unwrap_or_default();
@@ -1060,6 +1067,42 @@ mod test {
         assert!(location.field.is_some());
         assert!(location.component.is_none());
         assert!(location.sub_component.is_none());
+    }
+
+    #[test]
+    fn can_locate_cursor_with_carriage_returns() {
+        let message = include_str!("../test_assets/sample_adt_a01.hl7");
+        let message = message.replace("\r\n", "\n").replace("\n", "\r");
+        let message = ParsedMessage::parse(&message, true).expect("can parse message");
+        let location = message.locate_cursor(0x210);
+        let location = format!("{location}");
+        assert_eq!(location, "GT1.3.2.1");
+        let result = message.query_value(location).expect("can parse location query");
+        assert_eq!(result, Some("DONALD"));
+    }
+
+    #[test]
+    fn can_locate_cursor_with_new_lines() {
+        let message = include_str!("../test_assets/sample_adt_a01.hl7");
+        let message = message.replace("\r\n", "\r").replace("\r", "\n");
+        let message = ParsedMessage::parse(&message, true).expect("can parse message");
+        let location = message.locate_cursor(0x210);
+        let location = format!("{location}");
+        assert_eq!(location, "GT1.3.2.1");
+        let result = message.query_value(location).expect("can parse location query");
+        assert_eq!(result, Some("DONALD"));
+    }
+
+    #[test]
+    fn can_locate_cursor_with_windows_endings() {
+        let message = include_str!("../test_assets/sample_adt_a01.hl7");
+        let message = message.replace("\n", "\r\n");
+        let message = ParsedMessage::parse(&message, true).expect("can parse message");
+        let location = message.locate_cursor(0x210);
+        let location = format!("{location}");
+        assert_eq!(location, "GT1.3.2.1");
+        let result = message.query_value(location).expect("can parse location query");
+        assert_eq!(result, Some("DONALD"));
     }
 
     #[test]
