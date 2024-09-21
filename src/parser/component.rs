@@ -7,7 +7,7 @@ pub fn component<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str
 }
 
 fn parse_component<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Component<'i>> {
-    let (i, (subc_src, v)) =
+    let (i, (_subc_src, v)) =
         consumed(separated_list0(char(seps.subcomponent), subcomponent(seps)))(i)?;
 
     let v = if v.len() == 1 {

@@ -1,7 +1,5 @@
-use std::borrow::Cow;
-
 use super::component::component;
-use crate::message::{Repeat, Separators};
+use crate::message::{Component, Repeat, Separators};
 use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
 
 pub fn repeat<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, Repeat<'i>> {
@@ -9,26 +7,26 @@ pub fn repeat<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, R
 }
 
 fn parse_repeat<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Repeat<'i>> {
-    let (i, (subc_src, v)) = consumed(separated_list0(char(seps.component), component(seps)))(i)?;
+    let (i, (_subc_src, v)) = consumed(separated_list0(char(seps.component), component(seps)))(i)?;
 
     let v = if v.len() == 1 {
         let mut v = v;
-        Repeat {
-            value: v.remove(0).value,
-            components: vec![],
+        if let Component::Value(v) = v.remove(0) {
+            Repeat::Value(v)
+        } else {
+            Repeat::Component(v.remove(0))
         }
     } else {
-        Repeat {
-            value: Cow::Borrowed(subc_src),
-            components: v,
-        }
+        Repeat::Components(v)
     };
     Ok((i, v))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::message::Component;
+    use std::borrow::Cow;
+
+    use crate::message::{Component, Subcomponent};
     use super::*;
 
     #[test]
@@ -36,10 +34,7 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo";
-        let expected = Repeat {
-            value: Cow::Borrowed("foo"),
-            components: vec![],
-        };
+        let expected = Repeat::Value(Cow::Borrowed("foo"));
         let actual = parse_repeat(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -49,13 +44,10 @@ mod tests {
         let separators = Separators::default();
 
         let input = "foo^bar";
-        let expected = Repeat {
-            value: Cow::Borrowed("foo^bar"),
-            components: vec![
-                Component::Value(Cow::Borrowed("foo")),
-                Component::Value(Cow::Borrowed("bar")),
-            ],
-        };
+        let expected = Repeat::Components(vec![
+            Component::Value(Cow::Borrowed("foo")),
+            Component::Value(Cow::Borrowed("bar")),
+        ]);
         let actual = parse_repeat(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }
@@ -65,10 +57,21 @@ mod tests {
         let separators = Separators::default();
 
         let input = r"foo\^bar";
-        let expected = Repeat {
-            value: Cow::Borrowed(r"foo\^bar"),
-            components: vec![],
-        };
+        let expected = Repeat::Value(Cow::Borrowed(r"foo\^bar"));
+        let actual = parse_repeat(input, separators).unwrap().1;
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn can_parse_repeat_with_single_component_with_subcomponents() {
+        let separators = Separators::default();
+
+        let input = "foo^bar&baz";
+        let expected = Repeat::Component(Component::Subcomponents(vec![
+            Subcomponent(Cow::Borrowed("foo")),
+            Subcomponent(Cow::Borrowed("bar")),
+            Subcomponent(Cow::Borrowed("baz")),
+        ]));
         let actual = parse_repeat(input, separators).unwrap().1;
         assert_eq!(expected, actual);
     }
