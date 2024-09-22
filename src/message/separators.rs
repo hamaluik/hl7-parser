@@ -16,7 +16,7 @@ impl Default for Separators {
     /// # Examples
     ///
     /// ```
-    /// use hl7_parser::message::Separators;
+    /// use hl7_parser::Separators;
     /// let separators = Separators::default();
     /// assert_eq!(separators.field, '|');
     /// assert_eq!(separators.component, '^');
@@ -42,7 +42,7 @@ impl Separators {
     /// # Examples
     ///
     /// ```
-    /// use hl7_parser::message::Separators;
+    /// use hl7_parser::Separators;
     /// let separators = Separators::default();
     /// let input = "foo|bar^baz&quux~quuz\\corge\rquack\nduck";
     /// let expected = r"foo\F\bar\S\baz\T\quux\R\quuz\E\corge\X0D\quack\X0A\duck";
@@ -61,7 +61,7 @@ impl Separators {
     /// # Examples
     ///
     /// ```
-    /// use hl7_parser::message::Separators;
+    /// use hl7_parser::Separators;
     /// let separators = Separators::default();
     /// let input = r"foo\F\bar\S\baz\T\quux\R\quuz\E\corge\X0D\quack\X0A\duck\.br\";
     /// let expected = "foo|bar^baz&quux~quuz\\corge\rquack\nduck\r";
@@ -125,7 +125,7 @@ impl Display for DecodedSeparatorsDisplay<'_> {
                         "S" => write!(f, "{}", self.separators.component)?,
                         "T" => write!(f, "{}", self.separators.subcomponent)?,
                         "E" => write!(f, "{}", self.separators.escape)?,
-                        "X0A" => write!(f, "\n")?,
+                        "X0A" => writeln!(f)?,
                         "X0D" | ".br" => write!(f, "\r")?,
                         v => write!(f, "{v}")?,
                     }

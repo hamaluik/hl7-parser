@@ -1,88 +1,91 @@
-use std::borrow::Cow;
+use std::ops::Range;
 
-use super::field::field;
-use crate::message::{Field, Segment, Separators};
+use super::Span;
+use crate::{
+    message::{Field, Segment, Separators},
+    parser::field::field,
+};
 use nom::{
     bytes::complete::{tag, take_while_m_n},
-    character::complete::char,
-    combinator::{consumed, opt},
+    combinator::opt,
     multi::separated_list0,
     sequence::preceded,
     IResult,
 };
+use nom_locate::position;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct MSH<'i> {
-    pub separators: Separators,
-    pub fields: Vec<Field<'i>>,
+pub(crate) struct MSH<'m> {
+    pub(crate) separators: Separators,
+    source: &'m str,
+    fields: Vec<Field<'m>>,
+    range: Range<usize>,
 }
 
-pub fn msh<'i>() -> impl FnMut(&'i str) -> IResult<&'i str, MSH<'i>> {
+pub fn msh<'i>() -> impl FnMut(Span<'i>) -> IResult<Span<'i>, MSH<'i>> {
     move |i| parse_msh(i)
 }
 
-fn msh_name<'i>() -> impl FnMut(&'i str) -> IResult<&'i str, &'i str> {
+fn msh_name<'i>() -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Span<'i>> {
     move |i| tag("MSH")(i)
 }
 
-fn field_separator<'i>() -> impl FnMut(&'i str) -> IResult<&'i str, &str> {
-    move |i| take_while_m_n(1, 1, |c: char| c.is_ascii())(i)
-}
-
-fn separators<'i>(field: char) -> impl FnMut(&'i str) -> IResult<&'i str, Separators> {
+fn separators<'i>() -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Separators> {
     move |i| {
-        let (i, seps) = take_while_m_n(4, 4, |c: char| c.is_ascii())(i)?;
+        let (i, seps) = take_while_m_n(5, 5, |c: char| c.is_ascii())(i)?;
         let mut chars = seps.chars();
         let seps = Separators {
-            field,
-            component: chars.next().expect("char 0: component separator"),
-            repetition: chars.next().expect("char 1: repetition separator"),
-            escape: chars.next().expect("char 2: escape"),
-            subcomponent: chars.next().expect("char 3: subcomponent separator"),
+            field: chars.next().expect("field separator"),
+            component: chars.next().expect("component separator"),
+            repetition: chars.next().expect("repetition separator"),
+            escape: chars.next().expect("escape"),
+            subcomponent: chars.next().expect("subcomponent separator"),
         };
         Ok((i, seps))
     }
 }
 
-fn parse_msh<'i>(i: &'i str) -> IResult<&'i str, MSH<'i>> {
+fn parse_msh<'i>(i: Span<'i>) -> IResult<Span<'i>, MSH<'i>> {
+    let input_src = i.fragment();
+    let (i, pos_start) = position(i)?;
+
     let (i, _) = msh_name()(i)?;
-    let (i, f) = field_separator()(i)?;
-    let (i, (sep_src, seps)) = consumed(separators(f.chars().next().expect("char 0: field")))(i)?;
+    let (i, separators) = separators()(i)?;
     let (i, mut fields) = preceded(
-        opt(char(seps.field)),
-        separated_list0(char(seps.field), field(seps)),
+        opt(nom::character::complete::char(separators.field)),
+        separated_list0(
+            nom::character::complete::char(separators.field),
+            field(separators),
+        ),
     )(i)?;
-    fields.insert(
-        0,
-        Field {
-            value: Cow::Borrowed(sep_src),
-            repeats: vec![],
-            components: vec![],
-        },
-    );
-    fields.insert(
-        0,
-        Field {
-            value: Cow::Borrowed(f),
-            repeats: vec![],
-            components: vec![],
-        },
-    );
+
+    let (i, pos_end) = position(i)?;
+    let msh_src = &input_src[..pos_end.location_offset()];
+
+    let field_separator = Field::new_single(&input_src[3..4], 3..4);
+    let encoding_characters = Field::new_single(&input_src[4..8], 4..8);
+
+    fields.insert(0, encoding_characters);
+    fields.insert(0, field_separator);
 
     Ok((
         i,
         MSH {
-            separators: seps,
+            separators,
+            source: msh_src,
             fields,
+            range: pos_start.location_offset()..pos_end.location_offset(),
         },
     ))
 }
 
-impl<'i> From<MSH<'i>> for Segment<'i> {
-    fn from(value: MSH<'i>) -> Self {
+impl<'m> From<MSH<'m>> for Segment<'m> {
+    fn from(msh: MSH<'m>) -> Self {
         Segment {
-            name: Cow::Borrowed("MSH"),
-            fields: value.fields,
+            source: msh.source,
+            name: "MSH",
+            fields: msh.fields,
+            range: msh.range,
         }
     }
 }
@@ -94,72 +97,26 @@ mod tests {
 
     #[test]
     fn can_parse_msh_start() {
-        let input = r"MSH|^~\&|";
-        let expected = MSH {
-            separators: Separators {
-                field: '|',
-                component: '^',
-                subcomponent: '&',
-                repetition: '~',
-                escape: '\\',
-            },
-            fields: vec![
-                Field {
-                    value: Cow::Borrowed("|"),
-                    repeats: vec![],
-                    components: vec![],
-                },
-                Field {
-                    value: Cow::Borrowed(r"^~\&"),
-                    repeats: vec![],
-                    components: vec![],
-                },
-                Field {
-                    value: Cow::Borrowed(""),
-                    repeats: vec![],
-                    components: vec![],
-                },
-            ],
-        };
+        let input = Span::new(r"MSH|^~\&|");
         let actual = parse_msh(input).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.fields.len(), 3);
+        assert_eq!(actual.range, 0..9);
+        assert_eq!(actual.separators.field, '|');
+        assert_eq!(actual.separators.component, '^');
+        assert_eq!(actual.separators.repetition, '~');
+        assert_eq!(actual.separators.escape, '\\');
+        assert_eq!(actual.separators.subcomponent, '&');
+        assert_eq!(actual.fields[0].raw_value(), "|");
+        assert_eq!(actual.fields[1].raw_value(), "^~\\&");
     }
-
+    
     #[test]
     fn can_parse_msh() {
-        let input = r"MSH|^~\&|AccMgr|1";
-        let expected = MSH {
-            separators: Separators {
-                field: '|',
-                component: '^',
-                subcomponent: '&',
-                repetition: '~',
-                escape: '\\',
-            },
-            fields: vec![
-                Field {
-                    value: Cow::Borrowed("|"),
-                    repeats: vec![],
-                    components: vec![],
-                },
-                Field {
-                    value: Cow::Borrowed(r"^~\&"),
-                    repeats: vec![],
-                    components: vec![],
-                },
-                Field {
-                    value: Cow::Borrowed("AccMgr"),
-                    repeats: vec![],
-                    components: vec![],
-                },
-                Field {
-                    value: Cow::Borrowed("1"),
-                    repeats: vec![],
-                    components: vec![],
-                },
-            ],
-        };
-        let actual = msh()(input).unwrap().1;
-        assert_eq!(expected, actual);
+        let input = Span::new(r"MSH|^~\&|AccMgr|1");
+        let actual = parse_msh(input).unwrap().1;
+        assert_eq!(actual.fields.len(), 4);
+        assert_eq!(actual.range, 0..17);
+        assert_eq!(actual.fields[2].raw_value(), "AccMgr");
+        assert_eq!(actual.fields[3].raw_value(), "1");
     }
 }

@@ -1,4 +1,5 @@
-use std::{fmt::Display, borrow::Cow, ops::{Deref, DerefMut}};
+use std::{fmt::Display, ops::Range};
+
 use super::Separators;
 
 /// A subcomponent is the smallest unit of data in an HL7 message.
@@ -11,41 +12,22 @@ use super::Separators;
 /// the subcomponent is displayed. This allows the subcomponent to be parsed
 /// without allocating a new string for the decoded value.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Subcomponent<'m>(pub Cow<'m, str>);
+pub struct Subcomponent<'m> {
+    /// The raw value of the subcomponent, including escape sequences
+    pub value: &'m str,
+    /// The range of the subcomponent in the original message
+    pub range: Range<usize>,
+}
 
 impl<'m> Subcomponent<'m> {
-    /// Create a new subcomponent with the given value. The value must be a raw
-    /// value with proper escape sequences
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use hl7_parser::message::Subcomponent;
-    /// let subcomponent = Subcomponent::new_raw(r"foo\F\bar");
-    /// assert_eq!(subcomponent.raw_value(), r"foo\F\bar");
-    /// ```
-    pub fn new_raw<V: Into<Cow<'m, str>>>(value: V) -> Self {
-        Self(value.into())
+    pub(crate) fn new_single(source: &'m str, range: Range<usize>) -> Self {
+        Subcomponent {
+            value: source,
+            range,
+        }
     }
 
-    /// Create a new subcomponent with the given value. The value provided is
-    /// not escaped, and will be encoded using the given Separators
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use hl7_parser::message::{Separators, Subcomponent};
-    /// let separators = Separators::default();
-    ///
-    /// let subcomponent = Subcomponent::new(r"foo|bar", &separators);
-    /// assert_eq!(subcomponent.raw_value(), r"foo\F\bar");
-    /// ```
-    pub fn new<V: AsRef<str>>(value: V, separators: &Separators) -> Self {
-        Self(
-            separators.encode(value.as_ref()).to_string().into()
-        )
-    }
-
+    #[inline]
     /// Display the subcomponent value, using the separators to decode escape sequences
     /// by default. Note: if you want to display the raw value without decoding escape
     /// sequences, use the `#` flag, e.g. `format!("{:#}", subcomponent.display(separators))`
@@ -53,46 +35,36 @@ impl<'m> Subcomponent<'m> {
     /// # Examples
     ///
     /// ```
-    /// use hl7_parser::message::{Separators, Subcomponent};
+    /// use hl7_parser::{Separators, Subcomponent};
     /// let separators = Separators::default();
     ///
-    /// let subcomponent = Subcomponent::new_raw(r"foo\F\bar");
+    /// let subcomponent = Subcomponent {
+    ///     value: r"foo\F\bar",
+    ///     range: 0..1, // ignore
+    /// };
     ///
     /// assert_eq!(format!("{}", subcomponent.display(&separators)), "foo|bar");
     /// assert_eq!(format!("{:#}", subcomponent.display(&separators)), r"foo\F\bar");
     /// ```
     pub fn display(&'m self, separators: &'m Separators) -> SubcomponentDisplay<'m> {
         SubcomponentDisplay {
-            value: &self,
+            value: self.value,
             separators,
         }
     }
 
-    /// Get the raw value of the subcomponent, without decoding escape sequences
-    pub fn raw_value(&self) -> &Cow<'m, str> {
-        &self
-    }
-
-    /// Get a mutable reference to the raw value of the subcomponent,
-    /// without decoding escape sequences. Note that any modifications to this
-    /// value should be encoded using the `encode` method on [Separators]
-    /// so that the escape sequences are properly encoded.
-    ///
-    /// # Examples
-    /// ```
-    /// use hl7_parser::message::{Separators, Subcomponent};
-    /// let separators = Separators::default();
-    ///
-    /// let mut subcomponent = Subcomponent::new_raw("foo");
-    ///
-    /// *subcomponent.raw_value_mut() = separators.encode(r"foo|bar").to_string().into();
-    /// assert_eq!(subcomponent.raw_value(), r"foo\F\bar");
-    /// ```
-    pub fn raw_value_mut(&mut self) -> &mut Cow<'m, str> {
-        &mut self.0
+    #[inline]
+    /// Get the raw value of the subcomponent. This is the value as it appears in the message,
+    /// without any decoding of escape sequences.
+    pub fn raw_value(&self) -> &'m str {
+        self.value
     }
 }
 
+/// A display implementation for subcomponents.
+/// This will decode the escape sequences in the subcomponent value
+/// using the separators. If the `#` flag is used, the raw value
+/// will be displayed without decoding the escape sequences.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SubcomponentDisplay<'m> {
     value: &'m str,
@@ -103,24 +75,40 @@ impl Display for SubcomponentDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if f.alternate() {
             write!(f, "{}", self.value)
-        }
-        else {
+        } else {
             write!(f, "{}", self.separators.decode(self.value))
         }
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl<'m> Deref for Subcomponent<'m> {
-    type Target = Cow<'m, str>;
+    #[test]
+    fn subcomponents_can_display_raw() {
+        let separators = Separators::default();
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        let subcomponent = Subcomponent {
+            value: r"foo\F\bar",
+            range: 0..1, // ignore
+        };
+
+        assert_eq!(
+            format!("{:#}", subcomponent.display(&separators)),
+            r"foo\F\bar"
+        );
     }
-}
 
-impl<'m> DerefMut for Subcomponent<'m> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    #[test]
+    fn subcomponents_can_display_decoded() {
+        let separators = Separators::default();
+
+        let subcomponent = Subcomponent {
+            value: r"foo\F\bar",
+            range: 0..1, // ignore
+        };
+
+        assert_eq!(format!("{}", subcomponent.display(&separators)), "foo|bar");
     }
 }

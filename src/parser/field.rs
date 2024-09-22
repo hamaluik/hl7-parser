@@ -1,30 +1,21 @@
-use std::borrow::Cow;
-
-use super::repeat::repeat;
+use super::{repeat::repeat, Span};
 use crate::message::{Field, Separators};
 use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
+use nom_locate::position;
 
-pub fn field<'i>(seps: Separators) -> impl FnMut(&'i str) -> IResult<&'i str, Field<'i>> {
+pub fn field<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Field<'i>> {
     move |i| parse_field(i, seps)
 }
 
-fn parse_field<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Field<'i>> {
-    let (i, (subc_src, v)) = consumed(separated_list0(char(seps.repetition), repeat(seps)))(i)?;
+fn parse_field<'i>(i: Span<'i>, seps: Separators) -> IResult<Span<'i>, Field<'i>> {
+    let (i, pos_start) = position(i)?;
+    let (i, (field_src, v)) = consumed(separated_list0(char(seps.repetition), repeat(seps)))(i)?;
+    let (i, pos_end) = position(i)?;
 
-    let v = if !v.is_empty() {
-        let mut v = v;
-        let first = v.remove(0);
-        Field {
-            value: first.value,
-            repeats: v,
-            components: first.components,
-        }
-    } else {
-        Field {
-            value: Cow::Borrowed(subc_src),
-            repeats: v,
-            components: vec![],
-        }
+    let v = Field {
+        source: field_src.fragment(),
+        repeats: v,
+        range: pos_start.location_offset()..pos_end.location_offset(),
     };
     Ok((i, v))
 }
@@ -32,84 +23,39 @@ fn parse_field<'i>(i: &'i str, seps: Separators) -> IResult<&'i str, Field<'i>> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::message::{Component, Repeat};
     use pretty_assertions_sorted::assert_eq;
 
     #[test]
     fn can_parse_field_basic() {
         let separators = Separators::default();
 
-        let input = "foo";
-        let expected = Field {
-            value: Cow::Borrowed("foo"),
-            repeats: vec![],
-            components: vec![],
-        };
+        let input = Span::new("foo");
         let actual = parse_field(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.repeats.len(), 1);
+        assert_eq!(actual.range, 0..3);
     }
 
     #[test]
-    fn can_parse_field_without_repeats_with_components() {
+    fn can_parse_field_with_repeats() {
         let separators = Separators::default();
 
-        let input = "foo^bar^baz";
-        let expected = Field {
-            value: Cow::Borrowed("foo^bar^baz"),
-            repeats: vec![],
-            components: vec![
-                Component::Value(Cow::Borrowed("foo")),
-                Component::Value(Cow::Borrowed("bar")),
-                Component::Value(Cow::Borrowed("baz")),
-            ],
-        };
+        let input = Span::new("foo~bar");
         let actual = parse_field(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.repeats.len(), 2);
+        assert_eq!(actual.range, 0..7);
     }
 
     #[test]
-    fn can_parse_field_with_basic_repeats() {
+    fn can_parse_field_with_no_repeats_but_components() {
         let separators = Separators::default();
 
-        let input = "foo~bar~baz";
-        let expected = Field {
-            value: Cow::Borrowed("foo"),
-            repeats: vec![
-                Repeat {
-                    value: Cow::Borrowed("bar"),
-                    components: vec![],
-                },
-                Repeat {
-                    value: Cow::Borrowed("baz"),
-                    components: vec![],
-                },
-            ],
-            components: vec![],
-        };
+        let input = Span::new("foo^bar");
         let actual = parse_field(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn can_parse_field_with_repeats_and_components() {
-        let separators = Separators::default();
-
-        let input = "foo^bar~baz^qux";
-        let expected = Field {
-            value: Cow::Borrowed("foo^bar"),
-            repeats: vec![Repeat {
-                value: Cow::Borrowed("baz^qux"),
-                components: vec![
-                    Component::Value(Cow::Borrowed("baz")),
-                    Component::Value(Cow::Borrowed("qux")),
-                ],
-            }],
-            components: vec![
-                Component::Value(Cow::Borrowed("foo")),
-                Component::Value(Cow::Borrowed("bar")),
-            ],
-        };
-        let actual = parse_field(input, separators).unwrap().1;
-        assert_eq!(expected, actual);
+        assert_eq!(actual.repeats.len(), 1);
+        assert_eq!(actual.range, 0..7);
+        assert_eq!(actual.repeats[0].components.len(), 2);
+        assert_eq!(actual.repeats[0].range, 0..7);
+        assert_eq!(actual.repeats[0].components[0].subcomponents.len(), 1);
+        assert_eq!(actual.repeats[0].components[1].subcomponents.len(), 1);
     }
 }
