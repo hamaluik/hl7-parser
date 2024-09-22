@@ -1,6 +1,10 @@
-use super::Repeat;
-use std::{fmt::Display, ops::Range};
+use crate::display::FieldDisplay;
 
+use super::Repeat;
+use std::ops::Range;
+
+/// A field in an HL7 message. A field is a collection of repeats, separated by the repeat
+/// separator character. Fields are separated by the field separator character.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Field<'m> {
     pub(crate) source: &'m str,
@@ -114,6 +118,8 @@ impl<'m> Field<'m> {
     /// If the field has one or more repeats, this is equivalent to calling
     /// `repeat(1).component(number)`.
     ///
+    /// This is a convenience method for the common case where a field has only one repeat.
+    ///
     /// # Examples
     ///
     /// ```
@@ -124,31 +130,6 @@ impl<'m> Field<'m> {
     /// ```
     pub fn component(&self, number: usize) -> Option<&super::Component<'m>> {
         self.repeats.get(0).and_then(|r| r.component(number))
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct FieldDisplay<'m> {
-    repeats: &'m Vec<Repeat<'m>>,
-    separators: &'m super::Separators,
-}
-
-impl Display for FieldDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut first: bool = true;
-        for repeat in self.repeats {
-            if first {
-                first = false;
-            } else {
-                write!(f, "{}", self.separators.repetition)?;
-            }
-            if f.alternate() {
-                write!(f, "{:#}", repeat.display(self.separators))?;
-            } else {
-                write!(f, "{}", repeat.display(self.separators))?;
-            }
-        }
-        Ok(())
     }
 }
 

@@ -1,4 +1,6 @@
-use std::{fmt::Display, ops::Range};
+use std::ops::Range;
+use crate::display::RepeatDisplay;
+
 use super::{Component, Separators};
 
 /// A repeat represents an item in a list of field values. Most fields have a
@@ -106,31 +108,6 @@ impl<'m> Repeat<'m> {
     pub fn component(&self, number: usize) -> Option<&Component<'m>> {
         debug_assert!(number > 0, "Component numbers are 1-based");
         self.components.get(number - 1)
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct RepeatDisplay<'m> {
-    components: &'m Vec<Component<'m>>,
-    separators: &'m Separators,
-}
-
-impl Display for RepeatDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut first: bool = true;
-        for component in self.components {
-            if first {
-                first = false;
-            } else {
-                write!(f, "{}", self.separators.repetition)?;
-            }
-            if f.alternate() {
-                write!(f, "{:#}", component.display(self.separators))?;
-            } else {
-                write!(f, "{}", component.display(self.separators))?;
-            }
-        }
-        Ok(())
     }
 }
 

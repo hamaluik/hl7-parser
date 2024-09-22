@@ -93,4 +93,12 @@ impl<'m> Message<'m> {
     pub fn segments(&self) -> impl Iterator<Item = &Segment<'m>> {
         self.segments.iter()
     }
+
+    /// Get the raw value of the message. This is the value as it appears in the message,
+    /// without any decoding of escape sequences, and including all segments and
+    /// their separators.
+    /// This is the same as the input string that was used to parse the message.
+    pub fn raw_value(&self) -> &'m str {
+        self.source
+    }
 }

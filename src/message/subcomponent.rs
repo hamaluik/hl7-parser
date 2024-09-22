@@ -1,5 +1,5 @@
-use std::{fmt::Display, ops::Range};
-
+use std::ops::Range;
+use crate::display::SubcomponentDisplay;
 use super::Separators;
 
 /// A subcomponent is the smallest unit of data in an HL7 message.
@@ -35,7 +35,7 @@ impl<'m> Subcomponent<'m> {
     /// # Examples
     ///
     /// ```
-    /// use hl7_parser::{Separators, Subcomponent};
+    /// use hl7_parser::message::{Separators, Subcomponent};
     /// let separators = Separators::default();
     ///
     /// let subcomponent = Subcomponent {
@@ -58,26 +58,6 @@ impl<'m> Subcomponent<'m> {
     /// without any decoding of escape sequences.
     pub fn raw_value(&self) -> &'m str {
         self.value
-    }
-}
-
-/// A display implementation for subcomponents.
-/// This will decode the escape sequences in the subcomponent value
-/// using the separators. If the `#` flag is used, the raw value
-/// will be displayed without decoding the escape sequences.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SubcomponentDisplay<'m> {
-    value: &'m str,
-    separators: &'m Separators,
-}
-
-impl Display for SubcomponentDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if f.alternate() {
-            write!(f, "{}", self.value)
-        } else {
-            write!(f, "{}", self.separators.decode(self.value))
-        }
     }
 }
 

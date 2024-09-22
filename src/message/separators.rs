@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use crate::display::{DecodedSeparatorsDisplay, EncodedSeparatorsDisplay};
 
 /// Separators used in HL7 messages
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -16,7 +16,7 @@ impl Default for Separators {
     /// # Examples
     ///
     /// ```
-    /// use hl7_parser::Separators;
+    /// use hl7_parser::message::Separators;
     /// let separators = Separators::default();
     /// assert_eq!(separators.field, '|');
     /// assert_eq!(separators.component, '^');
@@ -42,7 +42,7 @@ impl Separators {
     /// # Examples
     ///
     /// ```
-    /// use hl7_parser::Separators;
+    /// use hl7_parser::message::Separators;
     /// let separators = Separators::default();
     /// let input = "foo|bar^baz&quux~quuz\\corge\rquack\nduck";
     /// let expected = r"foo\F\bar\S\baz\T\quux\R\quuz\E\corge\X0D\quack\X0A\duck";
@@ -61,7 +61,7 @@ impl Separators {
     /// # Examples
     ///
     /// ```
-    /// use hl7_parser::Separators;
+    /// use hl7_parser::message::Separators;
     /// let separators = Separators::default();
     /// let input = r"foo\F\bar\S\baz\T\quux\R\quuz\E\corge\X0D\quack\X0A\duck\.br\";
     /// let expected = "foo|bar^baz&quux~quuz\\corge\rquack\nduck\r";
@@ -73,72 +73,6 @@ impl Separators {
             separators: self,
             value,
         }
-    }
-}
-
-pub struct EncodedSeparatorsDisplay<'m> {
-    separators: &'m Separators,
-    value: &'m str,
-}
-
-impl Display for EncodedSeparatorsDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for c in self.value.chars() {
-            if c == '\r' {
-                write!(f, "{escape}X0D{escape}", escape=self.separators.escape)?;
-            } else if c == '\n' {
-                write!(f, "{escape}X0A{escape}", escape=self.separators.escape)?;
-            } else if c == self.separators.field {
-                write!(f, "{escape}F{escape}", escape=self.separators.escape)?;
-            } else if c == self.separators.repetition {
-                write!(f, "{escape}R{escape}", escape=self.separators.escape)?;
-            } else if c == self.separators.component {
-                write!(f, "{escape}S{escape}", escape=self.separators.escape)?;
-            } else if c == self.separators.subcomponent {
-                write!(f, "{escape}T{escape}", escape=self.separators.escape)?;
-            } else if c == self.separators.escape {
-                write!(f, "{escape}E{escape}", escape=self.separators.escape)?;
-            } else {
-                write!(f, "{}", c)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-pub struct DecodedSeparatorsDisplay<'m> {
-    separators: &'m Separators,
-    value: &'m str,
-}
-
-impl Display for DecodedSeparatorsDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut escaped = false;
-        let mut escape_i: usize = 0;
-        for (i, c) in self.value.chars().enumerate() {
-            if c == self.separators.escape {
-                if escaped {
-                    escaped = false;
-                    match &self.value[escape_i..i] {
-                        "F" => write!(f, "{}", self.separators.field)?,
-                        "R" => write!(f, "{}", self.separators.repetition)?,
-                        "S" => write!(f, "{}", self.separators.component)?,
-                        "T" => write!(f, "{}", self.separators.subcomponent)?,
-                        "E" => write!(f, "{}", self.separators.escape)?,
-                        "X0A" => writeln!(f)?,
-                        "X0D" | ".br" => write!(f, "\r")?,
-                        v => write!(f, "{v}")?,
-                    }
-                }
-                else {
-                    escape_i = i + 1;
-                    escaped = true;
-                }
-            } else if !escaped {
-                write!(f, "{}", c)?;
-            }
-        }
-        Ok(())
     }
 }
 

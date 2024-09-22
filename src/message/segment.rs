@@ -1,4 +1,6 @@
-use std::{fmt::Display, ops::Range};
+use std::ops::Range;
+use crate::display::SegmentDisplay;
+
 use super::{Field, Separators};
 
 /// A segment in an HL7 message. A segment is a collection of fields, separated by the field
@@ -72,32 +74,6 @@ impl<'m> Segment<'m> {
     pub fn field(&self, number: usize) -> Option<&Field<'m>> {
         debug_assert!(number > 0);
         self.fields.get(number - 1)
-    }
-}
-
-/// A display implementation for segments.
-/// This will decode the escape sequences in the segment value
-/// using the separators. If the `#` flag is used, the raw value
-/// will be displayed without decoding the escape sequences.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SegmentDisplay<'m> {
-    name: &'m str,
-    fields: &'m Vec<Field<'m>>,
-    separators: &'m Separators,
-}
-
-impl Display for SegmentDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)?;
-        for field in self.fields {
-            write!(f, "{}", self.separators.field)?;
-            if f.alternate() {
-                write!(f, "{:#}", field.display(self.separators))?;
-            } else {
-                write!(f, "{}", field.display(self.separators))?;
-            }
-        }
-        Ok(())
     }
 }
 

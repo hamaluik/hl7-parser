@@ -1,5 +1,7 @@
+use crate::display::ComponentDisplay;
+
 use super::{Separators, Subcomponent};
-use std::{fmt::Display, ops::Range};
+use std::ops::Range;
 
 /// A component is a part of a field, and is separated from other components by the component
 /// separator character. A component is composed of 0 or more subcomponents.
@@ -108,36 +110,6 @@ impl<'m> Component<'m> {
     pub fn subcomponent(&self, number: usize) -> Option<&Subcomponent<'m>> {
         debug_assert!(number > 0, "Subcomponent numbers are 1-based");
         self.subcomponents.get(number - 1)
-    }
-}
-
-/// A display implementation for components.
-/// This will decode the escape sequences in the component values
-/// using the separators. If the `#` flag is used, the raw value
-/// will be displayed without decoding the escape sequences.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct ComponentDisplay<'m> {
-    subcomponents: &'m Vec<Subcomponent<'m>>,
-    separators: &'m Separators,
-}
-
-impl Display for ComponentDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        //     write!(f, "{}", self.separators.decode(self.value))
-        let mut first: bool = true;
-        for subcomponent in self.subcomponents {
-            if first {
-                first = false;
-            } else {
-                write!(f, "{}", self.separators.subcomponent)?;
-            }
-            if f.alternate() {
-                write!(f, "{}", subcomponent.value)?;
-            } else {
-                write!(f, "{}", subcomponent.display(self.separators))?;
-            }
-        }
-        Ok(())
     }
 }
 
