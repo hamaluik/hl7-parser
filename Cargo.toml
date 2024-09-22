@@ -34,33 +34,33 @@ serde = "1"
 serde_json = "1"
 pretty_assertions_sorted = "1.2"
 
-# [[bench]]
-# name = "parse"
-# harness = false
-#
+[[bench]]
+name = "parse"
+harness = false
+
 # [[bench]]
 # name = "parse_buf"
 # harness = false
-#
-# [[bench]]
-# name = "decode"
-# harness = false
-#
+
+[[bench]]
+name = "decode"
+harness = false
+
 # [[bench]]
 # name = "locate"
 # harness = false
-#
+
 # [[bench]]
 # name = "query"
 # harness = false
-#
+
 # [[bench]]
 # name = "timestamp"
 # harness = false
-#
+
 # [profile.release]
 # debug = true
-#
+
 # [profile.bench]
 # debug = true
 
