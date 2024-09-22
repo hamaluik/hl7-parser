@@ -2,6 +2,7 @@ use crate::display::{DecodedSeparatorsDisplay, EncodedSeparatorsDisplay};
 
 /// Separators used in HL7 messages
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Separators {
     pub field: char,
     pub component: char,

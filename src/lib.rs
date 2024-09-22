@@ -33,14 +33,13 @@ pub fn parse_message(message: &str) -> Result<Message, String> {
 
 // TODO list:
 //
-// - Timestamp parsing (chrono & time)
-// - Add lenient parsing for segment separators (e.g. allow \n or \r\n as well as \r)
-// - Add cursor location
-// - Add query functions to get fields, components, etc. by name
-// - Add ability to convert parsed messages into a mutable form that can be modified and then
-// serialized back into a hl7 message
-// - Add serde support
-// - this_error errors
-// - More tests
-// - More documentation
-// - More examples
+// - [ ] Timestamp parsing (chrono & time)
+// - [ ] Add lenient parsing for segment separators (e.g. allow \n or \r\n as well as \r)
+// - [ ] Add cursor location
+// - [ ] Add query functions to get fields, components, etc. by name
+// - [ ] Add ability to convert parsed messages into a mutable form that can be modified and then serialized back into a hl7 message
+// - [X] Add serde support
+// - [ ] this_error errors
+// - [ ] More tests
+// - [ ] More documentation
+// - [ ] More examples

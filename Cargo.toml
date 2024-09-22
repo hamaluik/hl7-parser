@@ -15,7 +15,6 @@ categories = ["parser-implementations", "science"]
 unsafe_code = "forbid"
 
 [dependencies]
-indexmap = { version = "2.1", features = ["serde"] }
 nom = "7"
 nom_locate = "4"
 serde = { version = "1", features = ["derive"], optional = true }

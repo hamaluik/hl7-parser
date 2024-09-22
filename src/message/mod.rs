@@ -22,6 +22,7 @@ pub use segment::*;
 /// assert_eq!(msh.name, "MSH");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Message<'m> {
     pub(crate) source: &'m str,
     pub segments: Vec<Segment<'m>>,

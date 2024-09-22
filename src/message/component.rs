@@ -6,6 +6,7 @@ use std::ops::Range;
 /// A component is a part of a field, and is separated from other components by the component
 /// separator character. A component is composed of 0 or more subcomponents.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Component<'m> {
     pub(crate) source: &'m str,
     /// The subcomponents of the component

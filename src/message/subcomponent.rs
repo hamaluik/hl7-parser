@@ -12,6 +12,7 @@ use super::Separators;
 /// the subcomponent is displayed. This allows the subcomponent to be parsed
 /// without allocating a new string for the decoded value.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Subcomponent<'m> {
     /// The raw value of the subcomponent, including escape sequences
     pub value: &'m str,
