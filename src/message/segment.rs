@@ -73,7 +73,7 @@ impl<'m> Segment<'m> {
     /// assert_eq!(segment.field(3), None);
     /// ```
     pub fn field(&self, number: usize) -> Option<&Field<'m>> {
-        debug_assert!(number > 0);
+        debug_assert!(number > 0, "Field numbers are 1-indexed");
         self.fields.get(number - 1)
     }
 }

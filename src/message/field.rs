@@ -108,6 +108,7 @@ impl<'m> Field<'m> {
     /// assert_eq!(field.repeat(3), None);
     /// ```
     pub fn repeat(&self, number: usize) -> Option<&Repeat<'m>> {
+        debug_assert!(number > 0, "Repeat numbers are 1-indexed");
         self.repeats.get(number - 1)
     }
 
@@ -130,6 +131,7 @@ impl<'m> Field<'m> {
     /// assert_eq!(field.component(3), None);
     /// ```
     pub fn component(&self, number: usize) -> Option<&super::Component<'m>> {
+        debug_assert!(number > 0, "Component numbers are 1-indexed");
         self.repeats.get(0).and_then(|r| r.component(number))
     }
 }
