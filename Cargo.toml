@@ -54,9 +54,9 @@ harness = false
 # name = "query"
 # harness = false
 
-# [[bench]]
-# name = "timestamp"
-# harness = false
+[[bench]]
+name = "timestamp"
+harness = false
 
 # [profile.release]
 # debug = true

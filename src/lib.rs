@@ -6,12 +6,19 @@
 //! # Examples
 //!
 //! ```
-//! use hl7_parser::Message;
+//! use hl7_parser::{Message, timestamps::TimeStamp};
+//! use std::str::FromStr;
 //!
 //! let message =
-//! Message::parse("MSH|^~\\&|foo|bar|baz|quux|20010101000000||ADT^A01|1234|P|2.3|||").unwrap();
+//! Message::parse("MSH|^~\\&|foo|bar|baz|quux|20010504094523||ADT^A01|1234|P|2.3|||").unwrap();
 //! let msh = message.segment("MSH").unwrap();
 //! assert_eq!(msh.field(3).unwrap().raw_value(), "foo");
+//!
+//! let message_time = msh.field(7).unwrap();
+//! let time: TimeStamp = message_time.raw_value().parse().unwrap();
+//! assert_eq!(time.year, 2001);
+//! assert_eq!(time.month, Some(5));
+//! assert_eq!(time.day, Some(4));
 //! ```
 
 /// Structs for representing HL7 messages.
@@ -26,6 +33,10 @@ pub mod display;
 /// (use the `Message::parse` method instead).
 pub mod parser;
 
+/// Timestamp parsing and utilities to translate to and from the `chrono` and
+/// `time` crates.
+pub mod timestamps;
+
 /// Parses an HL7 message into a structured form. Equivalent to calling `Message::parse`.
 pub fn parse_message(message: &str) -> Result<Message, String> {
     Message::parse(message)
@@ -33,7 +44,9 @@ pub fn parse_message(message: &str) -> Result<Message, String> {
 
 // TODO list:
 //
-// - [ ] Timestamp parsing (chrono & time)
+// - [x] Timestamp parsing
+// - [x] Chrono support
+// - [ ] Time support
 // - [ ] Add lenient parsing for segment separators (e.g. allow \n or \r\n as well as \r)
 // - [ ] Add cursor location
 // - [ ] Add query functions to get fields, components, etc. by name
@@ -43,3 +56,4 @@ pub fn parse_message(message: &str) -> Result<Message, String> {
 // - [ ] More tests
 // - [ ] More documentation
 // - [ ] More examples
+// - [x] benchmarks
