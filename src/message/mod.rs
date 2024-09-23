@@ -11,6 +11,8 @@ pub use field::*;
 mod segment;
 pub use segment::*;
 
+use crate::parser::ParseError;
+
 /// A parsed HL7 message. This is the top-level structure that you get when you parse a message.
 /// It contains the segments of the message, as well as the separators used in the message.
 ///
@@ -47,10 +49,10 @@ impl<'m> Message<'m> {
     /// assert_eq!(first_name.raw_value(), "JOHN");
     /// assert_eq!(last_name.raw_value(), "DOE");
     /// ```
-    pub fn parse(input: &'m str) -> Result<Self, String> {
+    pub fn parse(input: &'m str) -> Result<Self, ParseError> {
         crate::parser::message::message()(input.into())
             .map(|(_, m)| m)
-            .map_err(move |e| format!("Failed to parse message: {:?}", e))
+            .map_err(|e| e.into())
     }
 
     /// Find a segment with the given name. If there are more than one segments

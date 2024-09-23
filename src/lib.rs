@@ -38,7 +38,7 @@ pub mod parser;
 pub mod timestamps;
 
 /// Parses an HL7 message into a structured form. Equivalent to calling `Message::parse`.
-pub fn parse_message(message: &str) -> Result<Message, String> {
+pub fn parse_message(message: &str) -> Result<Message, parser::ParseError> {
     Message::parse(message)
 }
 
