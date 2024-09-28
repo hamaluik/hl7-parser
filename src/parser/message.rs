@@ -1,6 +1,6 @@
 use crate::{
-    parser::{msh::msh, segment::segment},
     message::{Message, Segment},
+    parser::{msh::msh, segment::segment},
 };
 use nom::{
     character::complete::char, combinator::opt, multi::separated_list0, sequence::preceded, IResult,
@@ -13,7 +13,7 @@ pub fn message<'i>() -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Message<'i>> {
     move |i| parse_message(i)
 }
 
-fn parse_message<'i>(i: Span<'i>) -> IResult<Span<'i>, Message<'i>> {
+fn parse_message(i: Span<'_>) -> IResult<Span<'_>, Message<'_>> {
     let input_src = i.fragment();
     let (i, msh) = msh()(i)?;
     let separators = msh.separators;

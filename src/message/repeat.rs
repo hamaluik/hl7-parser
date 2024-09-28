@@ -1,5 +1,5 @@
-use std::ops::Range;
 use crate::display::RepeatDisplay;
+use std::ops::Range;
 
 use super::{Component, Separators};
 
@@ -124,12 +124,10 @@ mod tests {
 
         let component = Component {
             source: r"foo\F\bar",
-            subcomponents: vec![
-                Subcomponent {
-                    value: r"foo\F\bar",
-                    range: 0..1, // ignore
-                },
-            ],
+            subcomponents: vec![Subcomponent {
+                value: r"foo\F\bar",
+                range: 0..1, // ignore
+            }],
             range: 0..1, // ignore
         };
 
@@ -149,12 +147,10 @@ mod tests {
 
         let component = Component {
             source: r"foo\F\bar",
-            subcomponents: vec![
-                Subcomponent {
-                    value: r"foo\F\bar",
-                    range: 0..1, // ignore
-                },
-            ],
+            subcomponents: vec![Subcomponent {
+                value: r"foo\F\bar",
+                range: 0..1, // ignore
+            }],
             range: 0..1, // ignore
         };
 
@@ -168,5 +164,3 @@ mod tests {
         assert_eq!(formatted, r"foo|bar~foo|bar");
     }
 }
-
-

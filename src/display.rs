@@ -1,5 +1,5 @@
-use std::fmt::Display;
 use crate::message::{Component, Field, Repeat, Separators, Subcomponent};
+use std::fmt::Display;
 
 /// A display implementation which encodes the separators in the value. (i.e. replaces them with
 /// escape sequences)
@@ -12,19 +12,19 @@ impl Display for EncodedSeparatorsDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for c in self.value.chars() {
             if c == '\r' {
-                write!(f, "{escape}X0D{escape}", escape=self.separators.escape)?;
+                write!(f, "{escape}X0D{escape}", escape = self.separators.escape)?;
             } else if c == '\n' {
-                write!(f, "{escape}X0A{escape}", escape=self.separators.escape)?;
+                write!(f, "{escape}X0A{escape}", escape = self.separators.escape)?;
             } else if c == self.separators.field {
-                write!(f, "{escape}F{escape}", escape=self.separators.escape)?;
+                write!(f, "{escape}F{escape}", escape = self.separators.escape)?;
             } else if c == self.separators.repetition {
-                write!(f, "{escape}R{escape}", escape=self.separators.escape)?;
+                write!(f, "{escape}R{escape}", escape = self.separators.escape)?;
             } else if c == self.separators.component {
-                write!(f, "{escape}S{escape}", escape=self.separators.escape)?;
+                write!(f, "{escape}S{escape}", escape = self.separators.escape)?;
             } else if c == self.separators.subcomponent {
-                write!(f, "{escape}T{escape}", escape=self.separators.escape)?;
+                write!(f, "{escape}T{escape}", escape = self.separators.escape)?;
             } else if c == self.separators.escape {
-                write!(f, "{escape}E{escape}", escape=self.separators.escape)?;
+                write!(f, "{escape}E{escape}", escape = self.separators.escape)?;
             } else {
                 write!(f, "{}", c)?;
             }
@@ -57,8 +57,7 @@ impl Display for DecodedSeparatorsDisplay<'_> {
                         "X0D" | ".br" => write!(f, "\r")?,
                         v => write!(f, "{v}")?,
                     }
-                }
-                else {
+                } else {
                     escape_i = i + 1;
                     escaped = true;
                 }

@@ -2,13 +2,13 @@ use crate::message::{Component, Field, Repeat, Segment, Separators, Subcomponent
 
 pub(crate) type Span<'m> = nom_locate::LocatedSpan<&'m str>;
 
-mod subcomponent;
 mod component;
-mod repeat;
 mod field;
-mod segment;
-mod msh;
 pub(crate) mod message;
+mod msh;
+mod repeat;
+mod segment;
+mod subcomponent;
 
 /// Errors that can occur during parsing
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -53,97 +53,105 @@ impl<'s> From<nom::Err<nom::error::Error<Span<'s>>>> for ParseError {
 }
 
 /// Parse a subcomponent using the default separators.
-pub fn parse_subcomponent<'m>(input: &'m str) -> Result<Subcomponent<'m>, ParseError> {
+pub fn parse_subcomponent(input: &str) -> Result<Subcomponent<'_>, ParseError> {
     let separators = Separators::default();
     subcomponent::subcomponent(separators)(Span::new(input))
-        .map(|(_, m)| m).map_err(|e| e.into())
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
 }
 
 /// Parse a subcomponent using the given separators.
-pub fn parse_subcomponent_with_separators<'m>(
-    input: &'m str,
+pub fn parse_subcomponent_with_separators(
+    input: &str,
     separators: Separators,
-) -> Result<Subcomponent<'m>, ParseError> {
+) -> Result<Subcomponent<'_>, ParseError> {
     subcomponent::subcomponent(separators)(Span::new(input))
-        .map(|(_, m)| m).map_err(|e| e.into())
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
 }
 
 /// Parse a component using the default separators.
-pub fn parse_component<'m>(input: &'m str) -> Result<Component<'m>, ParseError> {
+pub fn parse_component(input: &str) -> Result<Component<'_>, ParseError> {
     let separators = Separators::default();
     component::component(separators)(Span::new(input))
-        .map(|(_, m)| m).map_err(|e| e.into())
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
 }
 
 /// Parse a component using the given separators.
-pub fn parse_component_with_separators<'m>(
-    input: &'m str,
+pub fn parse_component_with_separators(
+    input: &str,
     separators: Separators,
-) -> Result<Component<'m>, ParseError> {
+) -> Result<Component<'_>, ParseError> {
     component::component(separators)(Span::new(input))
-        .map(|(_, m)| m).map_err(|e| e.into())
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
 }
 
 /// Parse a repeat using the default separators.
-pub fn parse_repeat<'m>(input: &'m str) -> Result<Repeat<'m>, ParseError> {
+pub fn parse_repeat(input: &str) -> Result<Repeat<'_>, ParseError> {
     let separators = Separators::default();
     repeat::repeat(separators)(Span::new(input))
-        .map(|(_, m)| m).map_err(|e| e.into())
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
 }
 
 /// Parse a repeat using the given separators.
-pub fn parse_repeat_with_separators<'m>(
-    input: &'m str,
+pub fn parse_repeat_with_separators(
+    input: &str,
     separators: Separators,
-) -> Result<Repeat<'m>, ParseError> {
+) -> Result<Repeat<'_>, ParseError> {
     repeat::repeat(separators)(Span::new(input))
-        .map(|(_, m)| m).map_err(|e| e.into())
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
 }
 
 /// Parse a field using the default separators.
-pub fn parse_field<'m>(input: &'m str) -> Result<Field<'m>, ParseError> {
+pub fn parse_field(input: &str) -> Result<Field<'_>, ParseError> {
     let separators = Separators::default();
     field::field(separators)(Span::new(input))
-        .map(|(_, m)| m).map_err(|e| e.into())
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
 }
 
 /// Parse a field using the given separators.
-pub fn parse_field_with_separators<'m>(
-    input: &'m str,
+pub fn parse_field_with_separators(
+    input: &str,
     separators: Separators,
-) -> Result<Field<'m>, ParseError> {
+) -> Result<Field<'_>, ParseError> {
     field::field(separators)(Span::new(input))
-        .map(|(_, m)| m).map_err(|e| e.into())
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
 }
 
 /// Parse a segment using the default separators.
-pub fn parse_segment<'m>(input: &'m str) -> Result<Segment<'m>, ParseError> {
+pub fn parse_segment(input: &str) -> Result<Segment<'_>, ParseError> {
     let separators = Separators::default();
     segment::segment(separators)(Span::new(input))
-        .map(|(_, m)| m).map_err(|e| e.into())
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
 }
 
 /// Parse a segment using the given separators.
-pub fn parse_segment_with_separators<'m>(
-    input: &'m str,
+pub fn parse_segment_with_separators(
+    input: &str,
     separators: Separators,
-) -> Result<Segment<'m>, ParseError> {
+) -> Result<Segment<'_>, ParseError> {
     segment::segment(separators)(Span::new(input))
         .map(|(_, m)| m)
         .map_err(|e| e.into())
 }
 
 /// Parse a MSH segment and return the separators and the segment.
-pub fn parse_msh<'m>(input: &'m str) -> Result<(Separators, Segment<'m>), ParseError> {
+pub fn parse_msh(input: &str) -> Result<(Separators, Segment<'_>), ParseError> {
     msh::msh()(Span::new(input))
-        .map(|(_, m)| (m.separators.clone(), m.into()))
+        .map(|(_, m)| (m.separators, m.into()))
         .map_err(|e| e.into())
 }
 
 /// Parse a complete HL7 message.
-pub fn parse_message<'m>(input: &'m str) -> Result<crate::Message<'m>, ParseError> {
+pub fn parse_message(input: &str) -> Result<crate::Message<'_>, ParseError> {
     crate::parser::message::message()(Span::new(input))
         .map(|(_, m)| m)
         .map_err(|e| e.into())
 }
-

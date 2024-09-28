@@ -7,7 +7,7 @@ pub fn repeat<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'i>,
     move |i| parse_repeat(i, seps)
 }
 
-fn parse_repeat<'i>(i: Span<'i>, seps: Separators) -> IResult<Span<'i>, Repeat<'i>> {
+fn parse_repeat(i: Span, seps: Separators) -> IResult<Span, Repeat> {
     let (i, pos_start) = position(i)?;
     let (i, (repeat_src, v)) = consumed(separated_list0(char(seps.component), component(seps)))(i)?;
     let (i, pos_end) = position(i)?;

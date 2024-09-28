@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr};
+use crate::parser::Span;
 use nom::{
     bytes::complete::{tag, take_while_m_n},
     character::complete::one_of,
@@ -6,7 +6,7 @@ use nom::{
     sequence::preceded,
     IResult,
 };
-use crate::parser::Span;
+use std::{fmt::Display, str::FromStr};
 
 /// Utilities to convert back and forth between `TimeStamp`s and `chrono`'s `DateTime` and
 /// `NaiveDateTime`
@@ -131,12 +131,15 @@ pub fn parse_timestamp<'s>(s: &'s str) -> Result<TimeStamp, TimeParseError> {
     };
     let (s, offset_hours): (Span, Option<i8>) =
         opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("offset hours"))?;
-    let offset_hours = offset_hours.map(|h| h as i8 * offset_dir);
+    let offset_hours = offset_hours.map(|h| h * offset_dir);
     let (s, offset_minutes): (Span, Option<u8>) =
         opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("offset minutes"))?;
 
     if s.len() > 0 {
-        return Err(TimeParseError::UnexpectedCharacter(s.location_offset(), s.fragment().chars().next().unwrap_or_default()));
+        return Err(TimeParseError::UnexpectedCharacter(
+            s.location_offset(),
+            s.fragment().chars().next().unwrap_or_default(),
+        ));
     }
 
     let microsecond = match second_fracs {
@@ -160,10 +163,7 @@ pub fn parse_timestamp<'s>(s: &'s str) -> Result<TimeStamp, TimeParseError> {
     };
 
     let offset = match (offset_hours, offset_minutes) {
-        (Some(hours), Some(minutes)) => Some(TimeStampOffset {
-            hours,
-            minutes,
-        }),
+        (Some(hours), Some(minutes)) => Some(TimeStampOffset { hours, minutes }),
         _ => None,
     };
 
@@ -219,7 +219,6 @@ impl Display for TimeStamp {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -237,18 +236,20 @@ mod test {
         assert_eq!(ts.minute, Some(59));
         assert_eq!(ts.second, Some(5));
         assert_eq!(ts.microsecond, Some(123_400));
-        assert_eq!(ts.offset, Some(TimeStampOffset {
-            hours: -7,
-            minutes: 0,
-        }));
+        assert_eq!(
+            ts.offset,
+            Some(TimeStampOffset {
+                hours: -7,
+                minutes: 0,
+            })
+        );
     }
-    
+
     #[test]
     fn can_parse_time_without_offsets() {
         let ts = "20230312195905.1234";
-        let ts = parse_timestamp(ts)
-            .expect("can parse timestamp");
-    
+        let ts = parse_timestamp(ts).expect("can parse timestamp");
+
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, Some(3));
         assert_eq!(ts.day, Some(12));
@@ -258,13 +259,12 @@ mod test {
         assert_eq!(ts.microsecond, Some(123_400));
         assert_eq!(ts.offset, None);
     }
-    
+
     #[test]
     fn can_parse_time_without_offsets_or_fractional_seconds() {
         let ts = "20230312195905";
-        let ts = parse_timestamp(ts)
-            .expect("can parse timestamp");
-    
+        let ts = parse_timestamp(ts).expect("can parse timestamp");
+
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, Some(3));
         assert_eq!(ts.day, Some(12));
@@ -274,13 +274,12 @@ mod test {
         assert_eq!(ts.microsecond, None);
         assert_eq!(ts.offset, None);
     }
-    
+
     #[test]
     fn can_parse_time_with_offsets_without_fractional_seconds() {
         let ts = "20230312195905-0700";
-        let ts = parse_timestamp(ts)
-            .expect("can parse timestamp");
-    
+        let ts = parse_timestamp(ts).expect("can parse timestamp");
+
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, Some(3));
         assert_eq!(ts.day, Some(12));
@@ -288,18 +287,20 @@ mod test {
         assert_eq!(ts.minute, Some(59));
         assert_eq!(ts.second, Some(5));
         assert_eq!(ts.microsecond, None);
-        assert_eq!(ts.offset, Some(TimeStampOffset {
-            hours: -7,
-            minutes: 0,
-        }));
+        assert_eq!(
+            ts.offset,
+            Some(TimeStampOffset {
+                hours: -7,
+                minutes: 0,
+            })
+        );
     }
-    
+
     #[test]
     fn can_parse_time_with_only_year() {
         let ts = "2023";
-        let ts = parse_timestamp(ts)
-            .expect("can parse timestamp");
-    
+        let ts = parse_timestamp(ts).expect("can parse timestamp");
+
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, None);
         assert_eq!(ts.day, None);
@@ -309,7 +310,7 @@ mod test {
         assert_eq!(ts.microsecond, None);
         assert_eq!(ts.offset, None);
     }
-    
+
     #[test]
     fn cant_parse_bad_timestamps() {
         assert!(parse_timestamp("23").is_err());
@@ -319,7 +320,9 @@ mod test {
 
     #[test]
     fn can_parse_timestamp_fromstr() {
-        let ts: TimeStamp = "20230312195905.1234-0700".parse().expect("can parse timestamp");
+        let ts: TimeStamp = "20230312195905.1234-0700"
+            .parse()
+            .expect("can parse timestamp");
 
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, Some(3));
@@ -328,10 +331,13 @@ mod test {
         assert_eq!(ts.minute, Some(59));
         assert_eq!(ts.second, Some(5));
         assert_eq!(ts.microsecond, Some(123_400));
-        assert_eq!(ts.offset, Some(TimeStampOffset {
-            hours: -7,
-            minutes: 0,
-        }));
+        assert_eq!(
+            ts.offset,
+            Some(TimeStampOffset {
+                hours: -7,
+                minutes: 0,
+            })
+        );
     }
 
     #[test]

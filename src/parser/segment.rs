@@ -1,12 +1,8 @@
 use super::{field::field, Span};
 use crate::message::{Segment, Separators};
 use nom::{
-    bytes::complete::take_while_m_n,
-    character::complete::char,
-    combinator::consumed,
-    multi::separated_list0,
-    sequence::separated_pair,
-    IResult,
+    bytes::complete::take_while_m_n, character::complete::char, combinator::consumed,
+    multi::separated_list0, sequence::separated_pair, IResult,
 };
 use nom_locate::position;
 
@@ -18,11 +14,11 @@ fn segment_name<'i>() -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Span<'i>> {
     move |i| parse_segment_name(i)
 }
 
-fn parse_segment_name<'i>(i: Span<'i>) -> IResult<Span<'i>, Span<'i>> {
+fn parse_segment_name(i: Span) -> IResult<Span, Span> {
     take_while_m_n(3, 3, |c: char| c.is_alphanumeric())(i)
 }
 
-fn parse_segment<'i>(i: Span<'i>, seps: Separators) -> IResult<Span<'i>, Segment<'i>> {
+fn parse_segment(i: Span<'_>, seps: Separators) -> IResult<Span<'_>, Segment<'_>> {
     let (i, pos_start) = position(i)?;
     let (i, (segment_src, (name, v))) = consumed(separated_pair(
         segment_name(),
@@ -115,19 +111,10 @@ mod tests {
             r"foo^b\~ar^baz&x~qux^quux^quuz"
         );
         assert_eq!(actual.fields[0].repeats.len(), 2);
-        assert_eq!(
-            actual.fields[0].repeats[0].raw_value(),
-            r"foo^b\~ar^baz&x"
-        );
-        assert_eq!(
-            actual.fields[0].repeats[1].raw_value(),
-            r"qux^quux^quuz"
-        );
+        assert_eq!(actual.fields[0].repeats[0].raw_value(), r"foo^b\~ar^baz&x");
+        assert_eq!(actual.fields[0].repeats[1].raw_value(), r"qux^quux^quuz");
         assert_eq!(actual.fields[0].repeats[0].components.len(), 3);
-        assert_eq!(
-            actual.fields[0].repeats[0].components[0].raw_value(),
-            "foo"
-        );
+        assert_eq!(actual.fields[0].repeats[0].components[0].raw_value(), "foo");
         assert_eq!(
             actual.fields[0].repeats[0].components[1].raw_value(),
             r"b\~ar"
@@ -136,7 +123,12 @@ mod tests {
             actual.fields[0].repeats[0].components[2].raw_value(),
             "baz&x"
         );
-        assert_eq!(actual.fields[0].repeats[0].components[2].subcomponents.len(), 2);
+        assert_eq!(
+            actual.fields[0].repeats[0].components[2]
+                .subcomponents
+                .len(),
+            2
+        );
         assert_eq!(
             actual.fields[0].repeats[0].components[2].subcomponents[0].raw_value(),
             "baz"

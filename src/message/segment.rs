@@ -1,5 +1,5 @@
-use std::ops::Range;
 use crate::display::SegmentDisplay;
+use std::ops::Range;
 
 use super::{Field, Separators};
 
@@ -49,7 +49,7 @@ impl<'m> Segment<'m> {
     /// their separators.
     ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// let segment = hl7_parser::parser::parse_segment("ZFO|foo|bar").unwrap();
     /// assert_eq!(segment.name, "ZFO");
@@ -65,7 +65,7 @@ impl<'m> Segment<'m> {
     /// Returns `None` if the field number is out of range.
     ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// let segment = hl7_parser::parser::parse_segment("ZFO|foo|bar").unwrap();
     /// assert_eq!(segment.field(1).unwrap().raw_value(), "foo");
@@ -77,4 +77,3 @@ impl<'m> Segment<'m> {
         self.fields.get(number - 1)
     }
 }
-

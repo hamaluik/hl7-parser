@@ -9,7 +9,7 @@
 //! which traits are implemented.
 //!
 //! # Examples
-//! 
+//!
 //! ```
 //! use hl7_parser::timestamps::{TimeStamp, TimeStampOffset};
 //! use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc, Datelike, Timelike};

@@ -15,6 +15,7 @@ use nom::{
 use nom_locate::position;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) struct MSH<'m> {
     pub(crate) separators: Separators,
     source: &'m str,
@@ -45,7 +46,7 @@ fn separators<'i>() -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Separators> {
     }
 }
 
-fn parse_msh<'i>(i: Span<'i>) -> IResult<Span<'i>, MSH<'i>> {
+fn parse_msh(i: Span<'_>) -> IResult<Span<'_>, MSH<'_>> {
     let input_src = i.fragment();
     let (i, pos_start) = position(i)?;
 
@@ -109,7 +110,7 @@ mod tests {
         assert_eq!(actual.fields[0].raw_value(), "|");
         assert_eq!(actual.fields[1].raw_value(), "^~\\&");
     }
-    
+
     #[test]
     fn can_parse_msh() {
         let input = Span::new(r"MSH|^~\&|AccMgr|1");

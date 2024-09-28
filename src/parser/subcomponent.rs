@@ -34,7 +34,7 @@ fn subcomponent_parser(i: Span, seps: Separators) -> IResult<Span, Subcomponent<
         Subcomponent {
             range: pos_start.location_offset()..pos_end.location_offset(),
             value,
-        }
+        },
     ))
 }
 

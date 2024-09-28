@@ -132,7 +132,7 @@ impl<'m> Field<'m> {
     /// ```
     pub fn component(&self, number: usize) -> Option<&super::Component<'m>> {
         debug_assert!(number > 0, "Component numbers are 1-indexed");
-        self.repeats.get(0).and_then(|r| r.component(number))
+        self.repeats.first().and_then(|r| r.component(number))
     }
 }
 
@@ -165,6 +165,9 @@ mod tests {
         };
 
         assert_eq!(format!("{}", field.display(&separators)), "foo|bar~foo|bar");
-        assert_eq!(format!("{:#}", field.display(&separators)), r"foo\F\bar~foo\F\bar");
+        assert_eq!(
+            format!("{:#}", field.display(&separators)),
+            r"foo\F\bar~foo\F\bar"
+        );
     }
 }

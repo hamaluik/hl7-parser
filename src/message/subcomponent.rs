@@ -1,6 +1,6 @@
-use std::ops::Range;
-use crate::display::SubcomponentDisplay;
 use super::Separators;
+use crate::display::SubcomponentDisplay;
+use std::ops::Range;
 
 /// A subcomponent is the smallest unit of data in an HL7 message.
 /// It is a string that may contain escape sequences to encode the separators.

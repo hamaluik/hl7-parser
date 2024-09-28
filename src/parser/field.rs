@@ -7,7 +7,7 @@ pub fn field<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'i>, 
     move |i| parse_field(i, seps)
 }
 
-fn parse_field<'i>(i: Span<'i>, seps: Separators) -> IResult<Span<'i>, Field<'i>> {
+fn parse_field(i: Span, seps: Separators) -> IResult<Span, Field> {
     let (i, pos_start) = position(i)?;
     let (i, (field_src, v)) = consumed(separated_list0(char(seps.repetition), repeat(seps)))(i)?;
     let (i, pos_end) = position(i)?;

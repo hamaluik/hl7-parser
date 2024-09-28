@@ -7,7 +7,7 @@ pub fn component<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'
     move |i| parse_component(i, seps)
 }
 
-fn parse_component<'i>(i: Span<'i>, seps: Separators) -> IResult<Span<'i>, Component<'i>> {
+fn parse_component(i: Span, seps: Separators) -> IResult<Span, Component> {
     let (i, pos_start) = position(i)?;
     let (i, (component_src, v)) =
         consumed(separated_list0(char(seps.subcomponent), subcomponent(seps)))(i)?;
@@ -57,33 +57,33 @@ mod tests {
     #[test]
     fn can_parse_component_with_no_subcomponents_and_escaped_subcomponent_separator() {
         let separators = Separators::default();
-    
+
         let input = Span::new(r"foo\&bar");
         let actual = parse_component(input, separators).unwrap().1;
         dbg!(&actual);
         assert_eq!(actual.subcomponents.len(), 1);
         assert_eq!(actual.subcomponents[0].value, r"foo\&bar");
     }
-    
+
     #[test]
     fn can_parse_component_at_end_of_line() {
         let separators = Separators::default();
-    
+
         let input = Span::new("foo\rbar");
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(actual.subcomponents.len(), 1);
         assert_eq!(actual.display(&separators).to_string(), "foo");
     }
-    
+
     #[test]
     fn can_parse_component_in_field() {
         let separators = Separators::default();
-    
+
         let input = Span::new("foo|bar");
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(actual.subcomponents.len(), 1);
         assert_eq!(actual.display(&separators).to_string(), "foo");
-    
+
         let input = Span::new("foo&bar|baz");
         let actual = parse_component(input, separators).unwrap().1;
         assert_eq!(actual.subcomponents.len(), 2);
