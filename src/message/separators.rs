@@ -9,6 +9,10 @@ pub struct Separators {
     pub subcomponent: char,
     pub repetition: char,
     pub escape: char,
+    /// Not a separator, but a flag to indicate that newlines should be leniently parsed
+    /// as part of the message. Enabling this flag will allow `\n` and `\r\n` to be treated
+    /// the same as `\r` as the separator for segments.
+    pub lenient_newlines: bool,
 }
 
 impl Default for Separators {
@@ -32,6 +36,7 @@ impl Default for Separators {
             subcomponent: '&',
             repetition: '~',
             escape: '\\',
+            lenient_newlines: false,
         }
     }
 }
@@ -74,6 +79,13 @@ impl Separators {
             separators: self,
             value,
         }
+    }
+
+    /// Allow lenient newlines in the message. This will allow `\n` and `\r\n` to be treated
+    /// the same as `\r` as the separator for segments.
+    pub fn with_lenient_newlines(&mut self, lenient_newlines: bool) -> Self {
+        self.lenient_newlines = lenient_newlines;
+        *self
     }
 }
 

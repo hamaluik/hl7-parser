@@ -144,14 +144,23 @@ pub fn parse_segment_with_separators(
 
 /// Parse a MSH segment and return the separators and the segment.
 pub fn parse_msh(input: &str) -> Result<(Separators, Segment<'_>), ParseError> {
-    msh::msh()(Span::new(input))
+    msh::msh(false)(Span::new(input))
         .map(|(_, m)| (m.separators, m.into()))
         .map_err(|e| e.into())
 }
 
 /// Parse a complete HL7 message.
 pub fn parse_message(input: &str) -> Result<crate::Message<'_>, ParseError> {
-    crate::parser::message::message()(Span::new(input))
+    crate::parser::message::message(false)(Span::new(input))
+        .map(|(_, m)| m)
+        .map_err(|e| e.into())
+}
+
+pub fn parse_message_with_lenient_newlines(
+    input: &str,
+    lenient_newlines: bool,
+) -> Result<crate::Message<'_>, ParseError> {
+    crate::parser::message::message(lenient_newlines)(Span::new(input))
         .map(|(_, m)| m)
         .map_err(|e| e.into())
 }

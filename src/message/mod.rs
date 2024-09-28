@@ -50,7 +50,37 @@ impl<'m> Message<'m> {
     /// assert_eq!(last_name.raw_value(), "DOE");
     /// ```
     pub fn parse(input: &'m str) -> Result<Self, ParseError> {
-        crate::parser::message::message()(input.into())
+        crate::parser::message::message(false)(input.into())
+            .map(|(_, m)| m)
+            .map_err(|e| e.into())
+    }
+
+    /// Parse a message from a string, allowing lenient newlines.
+    /// This will return an error if the message is not a valid HL7 message.
+    /// If `lenient_newlines` is true, this will allow `\n` and `\r\n` to be treated
+    /// the same as `\r` as the separator for segments.
+    /// This is useful for parsing messages that come as standard text files
+    /// where each segment is separated by platform-specific newlines.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let message = hl7_parser::Message::parse_with_lenient_newlines("MSH|^~\\&|EPIC|EPICADT|SMS|SMSADT|199912271408|CHARRIS|ADT^A04|1817457|D|2.5|\nEVN|A04|199912271408|||CHARRIS\nPID||0493575^^^2^ID 1|454721||DOE^JOHN^^^^|DOE^JOHN^^^^|19480203|M||B|254 MYSTREET AVE^^MYTOWN^OH^44123^USA||(216)123-4567|||M|NON|400003403~1129086|\nNK1||ROE^MARIE^^^^|SPO||(216)123-4567||EC|||||||||||||||||||||||||||\nPV1||O|168 ~219~C~PMA^^^^^^^^^||||277^ALLEN MYLASTNAME^BONNIE^^^^|||||||||| ||2688684|||||||||||||||||||||||||199912271408||||||002376853", true).unwrap();
+    /// let msh = message.segment("MSH").unwrap();
+    /// assert_eq!(msh.field(4).unwrap().raw_value(), "EPICADT");
+    /// let pid = message.segment("PID").unwrap();
+    /// let patient_name = pid.field(5).unwrap();
+    /// assert_eq!(patient_name.raw_value(), "DOE^JOHN^^^^");
+    /// let first_name = patient_name.component(2).unwrap();
+    /// let last_name = patient_name.component(1).unwrap();
+    /// assert_eq!(first_name.raw_value(), "JOHN");
+    /// assert_eq!(last_name.raw_value(), "DOE");
+    /// ```
+    pub fn parse_with_lenient_newlines(
+        input: &'m str,
+        lenient_newlines: bool,
+    ) -> Result<Self, ParseError> {
+        crate::parser::message::message(lenient_newlines)(input.into())
             .map(|(_, m)| m)
             .map_err(|e| e.into())
     }

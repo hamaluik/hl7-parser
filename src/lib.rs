@@ -37,9 +37,15 @@ pub mod parser;
 /// `time` crates.
 pub mod timestamps;
 
-/// Parses an HL7 message into a structured form. Equivalent to calling `Message::parse`.
+/// Parses an HL7 message into a structured form. Equivalent to calling `Message::parse(message)`.
 pub fn parse_message(message: &str) -> Result<Message, parser::ParseError> {
     Message::parse(message)
+}
+
+/// Parses an HL7 message into a structured form, allowing lenient newlines. Equivalent to calling
+/// `Message::parse_with_lenient_newlines(message, true)`.
+pub fn parse_message_with_lenient_newlines(message: &str) -> Result<Message, parser::ParseError> {
+    Message::parse_with_lenient_newlines(message, true)
 }
 
 // TODO list:
@@ -47,7 +53,7 @@ pub fn parse_message(message: &str) -> Result<Message, parser::ParseError> {
 // - [x] Timestamp parsing
 // - [x] Chrono support
 // - [ ] Time support
-// - [ ] Add lenient parsing for segment separators (e.g. allow \n or \r\n as well as \r)
+// - [x] Add lenient parsing for segment separators (e.g. allow \n or \r\n as well as \r)
 // - [ ] Add cursor location
 // - [ ] Add query functions to get fields, components, etc. by name
 // - [ ] Add ability to convert parsed messages into a mutable form that can be modified and then serialized back into a hl7 message
