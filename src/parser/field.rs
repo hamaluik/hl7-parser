@@ -1,21 +1,20 @@
 use super::{repeat::repeat, Span};
 use crate::message::{Field, Separators};
 use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
-use nom_locate::position;
 
 pub fn field<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Field<'i>> {
     move |i| parse_field(i, seps)
 }
 
 fn parse_field(i: Span, seps: Separators) -> IResult<Span, Field> {
-    let (i, pos_start) = position(i)?;
+    let pos_start = i.location_offset();
     let (i, (field_src, v)) = consumed(separated_list0(char(seps.repetition), repeat(seps)))(i)?;
-    let (i, pos_end) = position(i)?;
+    let pos_end = i.location_offset();
 
     let v = Field {
         source: field_src.fragment(),
         repeats: v,
-        range: pos_start.location_offset()..pos_end.location_offset(),
+        range: pos_start..pos_end,
     };
     Ok((i, v))
 }

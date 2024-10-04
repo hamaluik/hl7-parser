@@ -11,7 +11,7 @@ pub use field::*;
 mod segment;
 pub use segment::*;
 
-use crate::parser::ParseError;
+use crate::{locate::LocatedCursor, parser::ParseError};
 
 /// A parsed HL7 message. This is the top-level structure that you get when you parse a message.
 /// It contains the segments of the message, as well as the separators used in the message.
@@ -104,22 +104,28 @@ impl<'m> Message<'m> {
 
     /// Find the nth segment with the given name. If there are fewer than n segments
     /// with this name, return `None`.
-    /// Segments are 0-indexed.
+    /// Segments are 1-indexed.
     ///
     /// # Examples
     ///
     /// ```
     /// let message =
     /// hl7_parser::Message::parse("MSH|^~\\&|\rABC|foo\rXYZ|bar\rABC|baz").unwrap();
-    /// let abc1 = message.segment_n("ABC", 0).unwrap();
+    /// let abc1 = message.segment_n("ABC", 1).unwrap();
     /// assert_eq!(abc1.field(1).unwrap().raw_value(), "foo");
-    /// let abc2 = message.segment_n("ABC", 1).unwrap();
+    /// let abc2 = message.segment_n("ABC", 2).unwrap();
     /// assert_eq!(abc2.field(1).unwrap().raw_value(), "baz");
-    /// let abc3 = message.segment_n("ABC", 2);
+    /// let abc3 = message.segment_n("ABC", 3);
     /// assert_eq!(abc3, None);
     /// ```
     pub fn segment_n(&self, name: &str, n: usize) -> Option<&Segment<'m>> {
-        self.segments.iter().filter(|s| s.name == name).nth(n)
+        debug_assert!(n > 0, "Segments are 1-indexed");
+        self.segments.iter().filter(|s| s.name == name).nth(n - 1)
+    }
+
+    /// Count the number of segments with the given name.
+    pub fn segment_count(&self, name: &str) -> usize {
+        self.segments.iter().filter(|s| s.name == name).count()
     }
 
     /// An iterator over the segments of the message
@@ -133,5 +139,11 @@ impl<'m> Message<'m> {
     /// This is the same as the input string that was used to parse the message.
     pub fn raw_value(&self) -> &'m str {
         self.source
+    }
+
+    /// Locate the cursor within the message. Equivalent to calling
+    /// `hl7_parser::locate::locate_cursor` with the message and the cursor position.
+    pub fn locate_cursor(&self, cursor: usize) -> Option<LocatedCursor> {
+        crate::locate::locate_cursor(self, cursor)
     }
 }

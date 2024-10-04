@@ -1,21 +1,20 @@
 use super::{component::component, Span};
 use crate::message::{Repeat, Separators};
 use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
-use nom_locate::position;
 
 pub fn repeat<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Repeat<'i>> {
     move |i| parse_repeat(i, seps)
 }
 
 fn parse_repeat(i: Span, seps: Separators) -> IResult<Span, Repeat> {
-    let (i, pos_start) = position(i)?;
+    let pos_start = i.location_offset();
     let (i, (repeat_src, v)) = consumed(separated_list0(char(seps.component), component(seps)))(i)?;
-    let (i, pos_end) = position(i)?;
+    let pos_end = i.location_offset();
 
     let v = Repeat {
         source: repeat_src.fragment(),
         components: v,
-        range: pos_start.location_offset()..pos_end.location_offset(),
+        range: pos_start..pos_end,
     };
     Ok((i, v))
 }

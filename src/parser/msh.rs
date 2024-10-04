@@ -12,7 +12,6 @@ use nom::{
     sequence::preceded,
     IResult,
 };
-use nom_locate::position;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
@@ -49,7 +48,7 @@ fn separators<'i>(lenient_newlines: bool) -> impl FnMut(Span<'i>) -> IResult<Spa
 
 fn parse_msh(i: Span<'_>, lenient_newlines: bool) -> IResult<Span<'_>, MSH<'_>> {
     let input_src = i.fragment();
-    let (i, pos_start) = position(i)?;
+    let pos_start = i.location_offset();
 
     let (i, _) = msh_name()(i)?;
     let (i, separators) = separators(lenient_newlines)(i)?;
@@ -61,8 +60,8 @@ fn parse_msh(i: Span<'_>, lenient_newlines: bool) -> IResult<Span<'_>, MSH<'_>> 
         ),
     )(i)?;
 
-    let (i, pos_end) = position(i)?;
-    let msh_src = &input_src[..pos_end.location_offset()];
+    let pos_end = i.location_offset();
+    let msh_src = &input_src[..pos_end];
 
     let field_separator = Field::new_single(&input_src[3..4], 3..4);
     let encoding_characters = Field::new_single(&input_src[4..8], 4..8);
@@ -76,7 +75,7 @@ fn parse_msh(i: Span<'_>, lenient_newlines: bool) -> IResult<Span<'_>, MSH<'_>> 
             separators,
             source: msh_src,
             fields,
-            range: pos_start.location_offset()..pos_end.location_offset(),
+            range: pos_start..pos_end,
         },
     ))
 }

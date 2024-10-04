@@ -4,7 +4,6 @@ use nom::{
     character::complete::{none_of, one_of},
     IResult,
 };
-use nom_locate::position;
 
 use super::Span;
 
@@ -15,39 +14,22 @@ pub fn subcomponent<'i>(
 }
 
 fn subcomponent_parser(i: Span, seps: Separators) -> IResult<Span, Subcomponent<'_>> {
-    let (i, pos_start) = position(i)?;
+    let pos_start = i.location_offset();
 
-    let (i, v): (Span, Span) = if seps.lenient_newlines {
-        let sep = [
-            seps.subcomponent,
-            seps.component,
-            seps.repetition,
-            seps.field,
-            seps.escape,
-            '\n',
-            '\r',
-        ];
-        let (i, v) = escaped(none_of(&sep[..]), seps.escape, one_of(&sep[..]))(i)?;
-        (i, v)
+    let sep = if seps.lenient_newlines {
+        &[seps.subcomponent, seps.component, seps.repetition, seps.field, seps.escape, '\n', '\r'][..]
     } else {
-        let sep = [
-            seps.subcomponent,
-            seps.component,
-            seps.repetition,
-            seps.field,
-            seps.escape,
-            '\r',
-        ];
-        let (i, v) = escaped(none_of(&sep[..]), seps.escape, one_of(&sep[..]))(i)?;
-        (i, v)
+        &[seps.subcomponent, seps.component, seps.repetition, seps.field, seps.escape, '\r'][..]
     };
-    let (i, pos_end) = position(i)?;
+    let (i, v) = escaped(none_of(&sep[..]), seps.escape, one_of(&sep[..]))(i)?;
+
+    let pos_end = i.location_offset();
     let value = v.fragment();
 
     Ok((
         i,
         Subcomponent {
-            range: pos_start.location_offset()..pos_end.location_offset(),
+            range: pos_start..pos_end,
             value,
         },
     ))

@@ -38,17 +38,13 @@ pretty_assertions_sorted = "1.2"
 name = "parse"
 harness = false
 
-# [[bench]]
-# name = "parse_buf"
-# harness = false
-
 [[bench]]
 name = "decode"
 harness = false
 
-# [[bench]]
-# name = "locate"
-# harness = false
+[[bench]]
+name = "locate"
+harness = false
 
 # [[bench]]
 # name = "query"

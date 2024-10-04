@@ -1,22 +1,21 @@
 use super::{subcomponent::subcomponent, Span};
 use crate::message::{Component, Separators};
 use nom::{character::complete::char, combinator::consumed, multi::separated_list0, IResult};
-use nom_locate::position;
 
 pub fn component<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Component<'i>> {
     move |i| parse_component(i, seps)
 }
 
 fn parse_component(i: Span, seps: Separators) -> IResult<Span, Component> {
-    let (i, pos_start) = position(i)?;
+    let pos_start = i.location_offset();
     let (i, (component_src, v)) =
         consumed(separated_list0(char(seps.subcomponent), subcomponent(seps)))(i)?;
-    let (i, pos_end) = position(i)?;
+    let pos_end = i.location_offset();
 
     let v = Component {
         source: component_src.fragment(),
         subcomponents: v,
-        range: pos_start.location_offset()..pos_end.location_offset(),
+        range: pos_start..pos_end,
     };
     Ok((i, v))
 }

@@ -6,7 +6,6 @@ use nom::{
     branch::alt, bytes::complete::tag, character::complete::char, combinator::opt,
     multi::separated_list0, sequence::preceded, IResult,
 };
-use nom_locate::position;
 
 use super::Span;
 
@@ -37,8 +36,8 @@ fn parse_message(i: Span<'_>, lenient_newlines: bool) -> IResult<Span<'_>, Messa
         )(i)?
     };
     segments.insert(0, msh);
-    let (i, pos_end) = position(i)?;
-    let source = &input_src[..pos_end.location_offset()];
+    let pos_end = i.location_offset();
+    let source = &input_src[..pos_end];
 
     Ok((
         i,

@@ -4,7 +4,6 @@ use nom::{
     bytes::complete::take_while_m_n, character::complete::char, combinator::consumed,
     multi::separated_list0, sequence::separated_pair, IResult,
 };
-use nom_locate::position;
 
 pub fn segment<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Segment<'i>> {
     move |i| parse_segment(i, seps)
@@ -19,13 +18,13 @@ fn parse_segment_name(i: Span) -> IResult<Span, Span> {
 }
 
 fn parse_segment(i: Span<'_>, seps: Separators) -> IResult<Span<'_>, Segment<'_>> {
-    let (i, pos_start) = position(i)?;
+    let pos_start = i.location_offset();
     let (i, (segment_src, (name, v))) = consumed(separated_pair(
         segment_name(),
         char(seps.field),
         separated_list0(char(seps.field), field(seps)),
     ))(i)?;
-    let (i, pos_end) = position(i)?;
+    let pos_end = i.location_offset();
 
     Ok((
         i,
@@ -33,7 +32,7 @@ fn parse_segment(i: Span<'_>, seps: Separators) -> IResult<Span<'_>, Segment<'_>
             source: segment_src.fragment(),
             name: name.fragment(),
             fields: v,
-            range: pos_start.location_offset()..pos_end.location_offset(),
+            range: pos_start..pos_end,
         },
     ))
 }

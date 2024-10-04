@@ -29,6 +29,9 @@ pub use message::Message;
 /// escaped values.
 pub mod display;
 
+/// Utilities for locating a cursor within an HL7 message.
+pub mod locate;
+
 /// Functions to parse various parts of an HL7 message. Probably not useful to you
 /// (use the `Message::parse` method instead).
 pub mod parser;
@@ -54,12 +57,12 @@ pub fn parse_message_with_lenient_newlines(message: &str) -> Result<Message, par
 // - [x] Chrono support
 // - [ ] Time support
 // - [x] Add lenient parsing for segment separators (e.g. allow \n or \r\n as well as \r)
-// - [ ] Add cursor location
+// - [x] Add cursor location
 // - [ ] Add query functions to get fields, components, etc. by name
 // - [ ] Add ability to convert parsed messages into a mutable form that can be modified and then serialized back into a hl7 message
 // - [X] Add serde support
-// - [ ] this_error errors
-// - [ ] More tests
-// - [ ] More documentation
-// - [ ] More examples
+// - [x] this_error errors
+// - [x] More tests
+// - [x] More documentation
+// - [x] More examples
 // - [x] benchmarks
