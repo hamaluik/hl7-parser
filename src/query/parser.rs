@@ -9,6 +9,7 @@ use nom::{
 };
 use thiserror::Error;
 
+/// An error that can occur when parsing a query
 #[derive(Debug, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum QueryParseError {

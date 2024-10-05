@@ -1,3 +1,60 @@
+//! # Querying HL7 messages
+//!
+//! This module provides utilities for querying HL7 messages. This is useful for extracting
+//! specific values from an HL7 message, such as the patient's name or the ordering provider's
+//! name without having to manually traverse the message.
+//!
+//! ## Location queries
+//!
+//! A location query is a string that describes the location of a value within an HL7 message.
+//! The query is made up of the segment name, field index, repeat index, component index, and
+//! subcomponent index. Each part of the query is separated by a period (`.`), and each index is
+//! enclosed in square brackets (`[]`). For example, the query `PID.5[1].1` would refer to the
+//! first subcomponent of the first component of the first repeat of the fifth field of the PID
+//! segment.
+//!
+//! ## Examples
+//!
+//! ```
+//! use hl7_parser::query::LocationQuery;
+//! let query = LocationQuery::parse("MSH[1].2[3].4.5").unwrap();
+//! assert_eq!(query.segment, "MSH");
+//! assert_eq!(query.segment_index, Some(1));
+//! assert_eq!(query.field, Some(2));
+//! assert_eq!(query.repeat, Some(3));
+//! assert_eq!(query.component, Some(4));
+//! assert_eq!(query.subcomponent, Some(5));
+//! ```
+//!
+//! ```
+//! use hl7_parser::query::LocationQuery;
+//! let query = LocationQuery::parse("MSH.2.4").unwrap();
+//! assert_eq!(query.segment, "MSH");
+//! assert_eq!(query.segment_index, None);
+//! assert_eq!(query.field, Some(2));
+//! assert_eq!(query.repeat, None);
+//! assert_eq!(query.component, Some(4));
+//! assert_eq!(query.subcomponent, None);
+//! ```
+//!
+//! ## Building location queries
+//!
+//! A location query can also be built using a builder pattern. This is useful when you want to
+//! ensure that the query is valid at before using it.
+//! ```
+//! use hl7_parser::query::LocationQueryBuilder;
+//! let query = LocationQueryBuilder::new()
+//!    .segment("MSH")
+//!    .segment_index(1)
+//!    .field(2)
+//!    .repeat(3)
+//!    .component(4)
+//!    .subcomponent(5)
+//!    .build()
+//!    .unwrap();
+//! assert_eq!(query.to_string(), "MSH[1].2[3].4.5");
+//! ```
+
 mod parser;
 
 use std::{fmt::Display, str::FromStr};
@@ -10,6 +67,14 @@ use crate::{
     parser::Span,
 };
 
+/// A location query that describes the location of a value within an HL7 message.
+/// The query is made up of the segment name, field index, repeat index, component index, and
+/// subcomponent index. Each part of the query is separated by a period (`.`), and each index is
+/// enclosed in square brackets (`[]`). For example, the query `PID.5[1].1` would refer to the
+/// first subcomponent of the first component of the first repeat of the fifth field of the PID
+/// segment.
+///
+/// All indexes are 1-based.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LocationQuery {
@@ -119,7 +184,7 @@ impl LocationQuery {
 /// A builder for creating a location query with error checking.
 #[derive(Debug, Clone)]
 pub struct LocationQueryBuilder {
-    segment: String,
+    segment: Option<String>,
     segment_index: Option<usize>,
     field: Option<usize>,
     repeat: Option<usize>,
@@ -130,111 +195,161 @@ pub struct LocationQueryBuilder {
 /// Errors that can occur when building a location query
 #[derive(Debug, Clone, Error)]
 pub enum LocationQueryBuildError {
+    /// The segment is missing
+    #[error("Missing segment: segment is required")]
+    MissingSegment,
+    /// The segment is not 3 characters long
     #[error("Invalid segment length: segments must be 3 characters long")]
     InvalidSegmentLength,
+    /// The segment contains non-ASCII uppercase characters
     #[error("Invalid segment name: segments must be ASCII uppercase")]
     InvalidSegmentName,
+    /// The segment index is 0
     #[error("Invalid segment index: segment index must be greater than 0")]
     InvalidSegmentIndex,
+    /// The field index is 0
     #[error("Invalid field index: field index must be greater than 0")]
     InvalidFieldIndex,
+    /// The repeat index is 0
     #[error("Invalid repeat index: repeat index must be greater than 0")]
     InvalidRepeatIndex,
+    /// The component index is 0
     #[error("Invalid component index: component index must be greater than 0")]
     InvalidComponentIndex,
+    /// The subcomponent index is 0
     #[error("Invalid subcomponent index: subcomponent index must be greater than 0")]
     InvalidSubcomponentIndex,
 }
 
 impl LocationQueryBuilder {
-    /// Create a new location query builder. The segment must be 3 characters long and ASCII
-    /// uppercase.
-    pub fn new(segment: &str) -> Result<Self, LocationQueryBuildError> {
-        if segment.len() != 3 {
-            return Err(LocationQueryBuildError::InvalidSegmentLength);
-        }
-        if !segment.chars().all(|c| c.is_ascii_uppercase()) {
-            return Err(LocationQueryBuildError::InvalidSegmentName);
-        }
-        Ok(Self {
-            segment: segment.to_string(),
+    pub fn new() -> Self {
+        Self {
+            segment: None,
             segment_index: None,
             field: None,
             repeat: None,
             component: None,
             subcomponent: None,
-        })
+        }
+    }
+
+    /// Create a new location query builder. The segment must be 3 characters long and ASCII
+    /// uppercase.
+    pub fn segment<S: ToString>(mut self, segment: S) -> Self {
+        self.segment = Some(segment.to_string());
+        self
     }
 
     /// Set the segment index. This is optional. If not set, the segment index will not be included
     /// in the query. If set, the segment index must be greater than 0.
-    pub fn segment_index(mut self, index: usize) -> Result<Self, LocationQueryBuildError> {
-        if index == 0 {
-            return Err(LocationQueryBuildError::InvalidSegmentIndex);
-        }
+    pub fn segment_index(mut self, index: usize) -> Self {
         self.segment_index = Some(index);
-        Ok(self)
+        self
     }
 
     /// Set the field index. This is optional. If not set, the field index will not be included in
     /// the query. If set, the field index must be greater than 0.
-    pub fn field(mut self, index: usize) -> Result<Self, LocationQueryBuildError> {
-        if index == 0 {
-            return Err(LocationQueryBuildError::InvalidFieldIndex);
-        }
+    pub fn field(mut self, index: usize) -> Self {
         self.field = Some(index);
-        Ok(self)
+        self
     }
 
     /// Set the repeat index. This is optional. If not set, the repeat index will not be included
     /// in the query. If set, the repeat index must be greater than 0.
-    pub fn repeat(mut self, index: usize) -> Result<Self, LocationQueryBuildError> {
-        if index == 0 {
-            return Err(LocationQueryBuildError::InvalidRepeatIndex);
-        }
+    pub fn repeat(mut self, index: usize) -> Self {
         self.repeat = Some(index);
-        Ok(self)
+        self
     }
 
     /// Set the component index. This is optional. If not set, the component index will not be
     /// included in the query. If set, the component index must be greater than 0.
-    pub fn component(mut self, index: usize) -> Result<Self, LocationQueryBuildError> {
-        if index == 0 {
-            return Err(LocationQueryBuildError::InvalidComponentIndex);
-        }
+    pub fn component(mut self, index: usize) -> Self {
         self.component = Some(index);
-        Ok(self)
+        self
     }
 
     /// Set the subcomponent index. This is optional. If not set, the subcomponent index will not
     /// be included in the query. If set, the subcomponent index must be greater than 0.
-    pub fn subcomponent(mut self, index: usize) -> Result<Self, LocationQueryBuildError> {
-        if index == 0 {
-            return Err(LocationQueryBuildError::InvalidSubcomponentIndex);
-        }
+    pub fn subcomponent(mut self, index: usize) -> Self {
         self.subcomponent = Some(index);
-        Ok(self)
+        self
     }
 
     /// Build the location query
-    pub fn build(self) -> LocationQuery {
-        LocationQuery {
-            segment: self.segment,
-            segment_index: self.segment_index,
-            field: self.field,
-            repeat: self.repeat,
-            component: self.component,
-            subcomponent: self.subcomponent,
+    pub fn build(self) -> Result<LocationQuery, LocationQueryBuildError> {
+        let segment = if let Some(segment) = self.segment {
+            if segment.len() != 3 {
+                return Err(LocationQueryBuildError::InvalidSegmentLength);
+            }
+            if !segment.chars().all(|c| c.is_ascii_uppercase()) {
+                return Err(LocationQueryBuildError::InvalidSegmentName);
+            }
+            segment
         }
+        else {
+            return Err(LocationQueryBuildError::MissingSegment);
+        };
+
+        let segment_index = if let Some(segment_index) = self.segment_index {
+            if segment_index == 0 {
+                return Err(LocationQueryBuildError::InvalidSegmentIndex);
+            }
+            Some(segment_index)
+        } else {
+            None
+        };
+
+        let field = if let Some(field) = self.field {
+            if field == 0 {
+                return Err(LocationQueryBuildError::InvalidFieldIndex);
+            }
+            Some(field)
+        } else {
+            None
+        };
+
+        let repeat = if let Some(repeat) = self.repeat {
+            if repeat == 0 {
+                return Err(LocationQueryBuildError::InvalidRepeatIndex);
+            }
+            Some(repeat)
+        } else {
+            None
+        };
+
+        let component = if let Some(component) = self.component {
+            if component == 0 {
+                return Err(LocationQueryBuildError::InvalidComponentIndex);
+            }
+            Some(component)
+        } else {
+            None
+        };
+
+        let subcomponent = if let Some(subcomponent) = self.subcomponent {
+            if subcomponent == 0 {
+                return Err(LocationQueryBuildError::InvalidSubcomponentIndex);
+            }
+            Some(subcomponent)
+        } else {
+            None
+        };
+
+        Ok(LocationQuery {
+            segment,
+            segment_index,
+            field,
+            repeat,
+            component,
+            subcomponent,
+        })
     }
 }
 
-impl From<LocationQueryBuilder> for LocationQuery {
-    fn from(builder: LocationQueryBuilder) -> Self {
-        builder.build()
-    }
-}
-
+/// A result of a location query. This can be a segment, field, repeat, component, or subcomponent.
+/// The result contains a reference to the corresponding part of the message.
+/// The result can be used to get the raw value of the part of the message, or to display the value
+/// using the separators to decode escape sequences.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LocationQueryResult<'m> {
@@ -325,36 +440,6 @@ mod tests {
             component: Some(4),
             subcomponent: Some(5),
         };
-        assert_eq!(query.to_string(), "MSH");
-    }
-
-    #[test]
-    fn can_build_query() {
-        let query = LocationQueryBuilder::new("MSH")
-            .unwrap()
-            .segment_index(1)
-            .unwrap()
-            .field(2)
-            .unwrap()
-            .repeat(3)
-            .unwrap()
-            .component(4)
-            .unwrap()
-            .subcomponent(5)
-            .unwrap()
-            .build();
-        assert_eq!(query.to_string(), "MSH[1].2[3].4.5");
-
-        let query = LocationQueryBuilder::new("MSH")
-            .unwrap()
-            .field(2)
-            .unwrap()
-            .component(4)
-            .unwrap()
-            .build();
-        assert_eq!(query.to_string(), "MSH.2.4");
-
-        let query = LocationQueryBuilder::new("MSH").unwrap().build();
         assert_eq!(query.to_string(), "MSH");
     }
 }
