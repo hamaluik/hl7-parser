@@ -53,14 +53,12 @@ impl TryFrom<TimeStamp> for Date {
 
         match (year, month, day) {
             (year, Some(month), Some(day)) => {
-                let month = Month::try_from(month as u8).map_err(|_| {
-                    TimeParseError::InvalidComponentRange(TimeComponent::Month)
-                })?;
+                let month = Month::try_from(month as u8)
+                    .map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Month))?;
 
-                Ok(Date::from_calendar_date(year.into(), month, day).map_err(|_| {
-                    TimeParseError::InvalidComponentRange(TimeComponent::Date)
-                })?)
-            },
+                Ok(Date::from_calendar_date(year.into(), month, day)
+                    .map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Date))?)
+            }
             (_year, Some(_), None) => Err(TimeParseError::MissingComponent(TimeComponent::Day)),
             (_year, None, _) => Err(TimeParseError::MissingComponent(TimeComponent::Month)),
         }
@@ -101,10 +99,20 @@ impl TryFrom<TimeStamp> for PrimitiveDateTime {
         }
 
         let TimeStamp {
-            hour, minute, second, microsecond, ..
+            hour,
+            minute,
+            second,
+            microsecond,
+            ..
         } = value;
 
-        let time = Time::from_hms_micro(hour.unwrap(), minute.unwrap(), second.unwrap(), microsecond.unwrap_or(0)).map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Time))?;
+        let time = Time::from_hms_micro(
+            hour.unwrap(),
+            minute.unwrap(),
+            second.unwrap(),
+            microsecond.unwrap_or(0),
+        )
+        .map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Time))?;
 
         Ok(PrimitiveDateTime::new(date, time))
     }
@@ -138,7 +146,8 @@ impl TryFrom<TimeStamp> for OffsetDateTime {
 
         let datetime = PrimitiveDateTime::try_from(value)?;
         let offset = value.offset.unwrap();
-        let offset = UtcOffset::from_hms(offset.hours, offset.minutes as i8, 0).map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Offset))?;
+        let offset = UtcOffset::from_hms(offset.hours, offset.minutes as i8, 0)
+            .map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Offset))?;
 
         let date = datetime.date();
         let time = datetime.time();
@@ -186,7 +195,10 @@ mod tests {
             offset: None,
         };
         let actual = Date::try_from(ts).unwrap();
-        assert_eq!(actual, Date::from_calendar_date(2023, Month::March, 12).unwrap());
+        assert_eq!(
+            actual,
+            Date::from_calendar_date(2023, Month::March, 12).unwrap()
+        );
     }
 
     #[test]
@@ -215,4 +227,3 @@ mod tests {
         assert_eq!(actual.offset(), UtcOffset::from_hms(-7, 0, 0).unwrap());
     }
 }
-

@@ -1,6 +1,6 @@
 use hl7_parser::parse_message_with_lenient_newlines;
 
-static ADT_SRC: &'static str = include_str!("../test_assets/sample_adt_a08.hl7");
+static ADT_SRC: &str = include_str!("../test_assets/sample_adt_a08.hl7");
 
 #[test]
 fn locate_the_cursor() {
@@ -14,4 +14,3 @@ fn locate_the_cursor() {
     assert_eq!(format!("{cursor}"), "PID.5.1");
     assert_eq!(cursor.component.unwrap().1.raw_value(), "DUCK");
 }
-

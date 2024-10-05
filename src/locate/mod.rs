@@ -51,9 +51,7 @@ pub fn locate_cursor<'m>(message: &'m Message<'m>, offset: usize) -> Option<Loca
         }
     }
 
-    if cursor.segment.is_none() {
-        return None;
-    }
+    cursor.segment?;
     for (i, field) in cursor.segment.as_ref().unwrap().2.fields().enumerate() {
         // note: inclusive range at both ends to include the field separator
         if offset >= field.range.start && offset <= field.range.end {

@@ -17,11 +17,26 @@ fn subcomponent_parser(i: Span, seps: Separators) -> IResult<Span, Subcomponent<
     let pos_start = i.location_offset();
 
     let sep = if seps.lenient_newlines {
-        &[seps.subcomponent, seps.component, seps.repetition, seps.field, seps.escape, '\n', '\r'][..]
+        &[
+            seps.subcomponent,
+            seps.component,
+            seps.repetition,
+            seps.field,
+            seps.escape,
+            '\n',
+            '\r',
+        ][..]
     } else {
-        &[seps.subcomponent, seps.component, seps.repetition, seps.field, seps.escape, '\r'][..]
+        &[
+            seps.subcomponent,
+            seps.component,
+            seps.repetition,
+            seps.field,
+            seps.escape,
+            '\r',
+        ][..]
     };
-    let (i, v) = escaped(none_of(&sep[..]), seps.escape, one_of(&sep[..]))(i)?;
+    let (i, v) = escaped(none_of(sep), seps.escape, one_of(sep))(i)?;
 
     let pos_end = i.location_offset();
     let value = v.fragment();
