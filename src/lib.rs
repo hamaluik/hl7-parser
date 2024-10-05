@@ -55,7 +55,7 @@ pub fn parse_message_with_lenient_newlines(message: &str) -> Result<Message, par
 //
 // - [x] Timestamp parsing
 // - [x] Chrono support
-// - [ ] Time support
+// - [x] Time support
 // - [x] Add lenient parsing for segment separators (e.g. allow \n or \r\n as well as \r)
 // - [x] Add cursor location
 // - [ ] Add query functions to get fields, components, etc. by name

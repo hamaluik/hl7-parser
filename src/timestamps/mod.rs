@@ -13,6 +13,44 @@ use std::{fmt::Display, str::FromStr};
 #[cfg(feature = "chrono")]
 pub mod chrono;
 
+/// Utilities to convert back and forth between `TimeStamp`s and `time`'s `OffsetDateTime`
+/// and `PrimitiveDateTime`
+#[cfg(feature = "time")]
+pub mod time;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TimeComponent {
+    Year,
+    Month,
+    Day,
+    Hour,
+    Minute,
+    Second,
+    Microsecond,
+    Offset,
+    Date,
+    Time,
+    DateTime,
+}
+
+impl Display for TimeComponent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TimeComponent::Year => write!(f, "year"),
+            TimeComponent::Month => write!(f, "month"),
+            TimeComponent::Day => write!(f, "day"),
+            TimeComponent::Hour => write!(f, "hour"),
+            TimeComponent::Minute => write!(f, "minute"),
+            TimeComponent::Second => write!(f, "second"),
+            TimeComponent::Microsecond => write!(f, "microsecond"),
+            TimeComponent::Offset => write!(f, "offset"),
+            TimeComponent::Date => write!(f, "date"),
+            TimeComponent::Time => write!(f, "time"),
+            TimeComponent::DateTime => write!(f, "date and time"),
+        }
+    }
+}
+
 /// Errors that can result from parsing HL7 timestamps
 #[derive(thiserror::Error, Debug)]
 pub enum TimeParseError {
@@ -20,10 +58,12 @@ pub enum TimeParseError {
     ParsingFailed(&'static str),
     #[error("Unexpected character '{1}' in timestamp at position {0}")]
     UnexpectedCharacter(usize, char),
-    #[error("Invalid component range: {0}")]
-    InvalidComponentRange(&'static str),
+    #[error("Invalid component range: {0:}")]
+    InvalidComponentRange(TimeComponent),
     #[error("Ambiguous time, could be {0} or {1}")]
     AmbiguousTime(String, String),
+    #[error("Missing component: {0:}")]
+    MissingComponent(TimeComponent),
 }
 
 /// A parsed timezone offset in hours and minutes

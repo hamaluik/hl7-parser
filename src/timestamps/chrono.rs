@@ -1,5 +1,5 @@
 //! All implementations here are implemented as `TryFrom` and `From` traits
-//! between the `TimeStamp` struct and various chrono types. This allows for
+//! between the `TimeStamp` struct and various `chrono` types. This allows for
 //! easy conversion between the two types. The `TryFrom` implementations will
 //! return an error if the conversion is not possible, such as if the date or
 //! time components are invalid. The `From` implementations will always succeed
@@ -63,7 +63,7 @@
 //! }));
 //! ```
 
-use super::{TimeParseError, TimeStamp, TimeStampOffset};
+use super::{TimeComponent, TimeParseError, TimeStamp, TimeStampOffset};
 use chrono::{
     offset::LocalResult, DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime,
     TimeZone, Timelike,
@@ -83,7 +83,7 @@ impl TryFrom<TimeStamp> for NaiveDate {
         let day = day.unwrap_or(1);
 
         let date = NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32)
-            .ok_or(TimeParseError::InvalidComponentRange("date does not exist"))?;
+            .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Date))?;
         Ok(date)
     }
 }
@@ -127,7 +127,7 @@ impl TryFrom<TimeStamp> for NaiveDateTime {
             value.second.unwrap_or(0) as u32,
             value.microsecond.unwrap_or(0),
         )
-        .ok_or(TimeParseError::InvalidComponentRange("time does not exist"))?;
+        .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Time))?;
         Ok(NaiveDateTime::new(date, time))
     }
 }
@@ -181,7 +181,7 @@ impl TryFrom<TimeStamp> for LocalResult<DateTime<FixedOffset>> {
         let month = month.unwrap_or(1);
         let day = day.unwrap_or(1);
         let date = NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32)
-            .ok_or(TimeParseError::InvalidComponentRange("date does not exist"))?;
+            .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Date))?;
 
         let hour = hour.unwrap_or(0);
         let minute = minute.unwrap_or(0);
@@ -190,14 +190,13 @@ impl TryFrom<TimeStamp> for LocalResult<DateTime<FixedOffset>> {
 
         let time =
             NaiveTime::from_hms_micro_opt(hour as u32, minute as u32, second as u32, microsecond)
-                .ok_or(TimeParseError::InvalidComponentRange("time does not exist"))?;
+                .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Time))?;
 
         let offset = offset.unwrap_or_default();
         let offset_hours = offset.hours as i32;
         let offset_minutes = offset.minutes as i32;
-        let offset = FixedOffset::east_opt(offset_hours * 3600 + offset_minutes * 60).ok_or(
-            TimeParseError::InvalidComponentRange("offset does not exist"),
-        )?;
+        let offset = FixedOffset::east_opt(offset_hours * 3600 + offset_minutes * 60)
+            .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Offset))?;
 
         let datetime = NaiveDateTime::new(date, time);
         let datetime = datetime.and_local_timezone(offset);
@@ -229,7 +228,7 @@ where
                 latest.to_rfc3339(),
             )),
             LocalResult::None => Err(TimeParseError::InvalidComponentRange(
-                "datetime does not exist",
+                TimeComponent::DateTime,
             )),
         }
     }
