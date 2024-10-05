@@ -7,7 +7,7 @@ mod field;
 pub(crate) mod message;
 mod msh;
 mod repeat;
-mod segment;
+pub(crate) mod segment;
 mod subcomponent;
 
 /// Errors that can occur during parsing

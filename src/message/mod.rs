@@ -11,7 +11,11 @@ pub use field::*;
 mod segment;
 pub use segment::*;
 
-use crate::{locate::LocatedCursor, parser::ParseError};
+use crate::{
+    locate::LocatedCursor,
+    parser::ParseError,
+    query::{LocationQuery, LocationQueryResult},
+};
 
 /// A parsed HL7 message. This is the top-level structure that you get when you parse a message.
 /// It contains the segments of the message, as well as the separators used in the message.
@@ -145,5 +149,57 @@ impl<'m> Message<'m> {
     /// `hl7_parser::locate::locate_cursor` with the message and the cursor position.
     pub fn locate_cursor(&self, cursor: usize) -> Option<LocatedCursor> {
         crate::locate::locate_cursor(self, cursor)
+    }
+
+    /// Query the message for a specific location. This is a more flexible way to
+    /// access the fields, components, and subcomponents of the message.
+    ///
+    /// # Examples
+    /// ```
+    /// let message =
+    /// hl7_parser::Message::parse("MSH|^~\\&|foo|bar|baz|quux|20010504094523||ADT^A01|1234|P|2.3|||").unwrap();
+    /// let field = message.query("MSH.3").unwrap().raw_value();
+    /// assert_eq!(field, "foo");
+    /// let component = message.query("MSH.7.1").unwrap().raw_value();
+    /// assert_eq!(component, "20010504094523");
+    /// ```
+    pub fn query<Q>(&'m self, query: Q) -> Option<LocationQueryResult<'m>>
+    where
+        Q: TryInto<LocationQuery>,
+    {
+        let query = query.try_into().ok()?;
+        let segment_index = query.segment_index.unwrap_or(1);
+
+        if let Some(field) = query.field {
+            let repeat = query.repeat.unwrap_or(1);
+            if let Some(component) = query.component {
+                if let Some(subcomponent) = query.subcomponent {
+                    self.segment_n(&query.segment, segment_index)
+                        .and_then(|s| s.field(field))
+                        .and_then(|f| f.repeat(repeat))
+                        .and_then(|r| r.component(component))
+                        .and_then(|c| c.subcomponent(subcomponent))
+                        .map(LocationQueryResult::Subcomponent)
+                } else {
+                    self.segment_n(&query.segment, segment_index)
+                        .and_then(|s| s.field(field))
+                        .and_then(|f| f.repeat(repeat))
+                        .and_then(|r| r.component(component))
+                        .map(LocationQueryResult::Component)
+                }
+            } else if query.repeat.is_some() {
+                self.segment_n(&query.segment, segment_index)
+                    .and_then(|s| s.field(field))
+                    .and_then(|f| f.repeat(repeat))
+                    .map(LocationQueryResult::Repeat)
+            } else {
+                self.segment_n(&query.segment, segment_index)
+                    .and_then(|s| s.field(field))
+                    .map(LocationQueryResult::Field)
+            }
+        } else {
+            self.segment_n(&query.segment, segment_index)
+                .map(LocationQueryResult::Segment)
+        }
     }
 }

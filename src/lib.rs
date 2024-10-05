@@ -32,6 +32,11 @@ pub mod display;
 /// Utilities for locating a cursor within an HL7 message.
 pub mod locate;
 
+/// Human-readable location queries for HL7 messages.
+///
+/// i.e. parsing "PID.5.1" to get the value of the first component of the fifth field
+pub mod query;
+
 /// Functions to parse various parts of an HL7 message. Probably not useful to you
 /// (use the `Message::parse` method instead).
 pub mod parser;
@@ -58,7 +63,7 @@ pub fn parse_message_with_lenient_newlines(message: &str) -> Result<Message, par
 // - [x] Time support
 // - [x] Add lenient parsing for segment separators (e.g. allow \n or \r\n as well as \r)
 // - [x] Add cursor location
-// - [ ] Add query functions to get fields, components, etc. by name
+// - [x] Add query functions to get fields, components, etc. by name
 // - [ ] Add ability to convert parsed messages into a mutable form that can be modified and then serialized back into a hl7 message
 // - [X] Add serde support
 // - [x] this_error errors

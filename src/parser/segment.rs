@@ -13,7 +13,7 @@ fn segment_name<'i>() -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Span<'i>> {
     move |i| parse_segment_name(i)
 }
 
-fn parse_segment_name(i: Span) -> IResult<Span, Span> {
+pub(crate) fn parse_segment_name(i: Span) -> IResult<Span, Span> {
     take_while_m_n(3, 3, |c: char| c.is_alphanumeric())(i)
 }
 
