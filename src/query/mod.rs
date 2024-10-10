@@ -221,6 +221,12 @@ pub enum LocationQueryBuildError {
     InvalidSubcomponentIndex,
 }
 
+impl Default for LocationQueryBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LocationQueryBuilder {
     pub fn new() -> Self {
         Self {

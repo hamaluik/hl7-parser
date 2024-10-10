@@ -25,6 +25,8 @@
 pub mod message;
 pub use message::Message;
 
+pub mod builder;
+
 /// Structs for displaying parsed HL7 message values. Especially useful for decoding
 /// escaped values.
 pub mod display;
