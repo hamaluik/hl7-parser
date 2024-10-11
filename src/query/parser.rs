@@ -17,8 +17,6 @@ pub enum QueryParseError {
     #[error("Query parsing failed at position {position}: `{fragment}`")]
     FailedToParse {
         position: usize,
-        line: usize,
-        column: usize,
         fragment: String,
     },
 
@@ -35,14 +33,10 @@ impl<'s> From<nom::Err<nom::error::Error<Span<'s>>>> for QueryParseError {
                 QueryParseError::IncompleteInput(Some(size.get()))
             }
             nom::Err::Error(e) | nom::Err::Failure(e) => {
-                let position = e.input.location_offset();
-                let line = e.input.location_line() as usize;
-                let column = e.input.naive_get_utf8_column();
+                let position = e.input.offset;
                 QueryParseError::FailedToParse {
                     position,
-                    line,
-                    column,
-                    fragment: e.input.fragment().chars().take(7).collect(),
+                    fragment: e.input.input.chars().take(7).collect(),
                 }
             }
         }
@@ -51,7 +45,7 @@ impl<'s> From<nom::Err<nom::error::Error<Span<'s>>>> for QueryParseError {
 
 fn nonzero_integer(s: Span) -> IResult<Span, usize> {
     let (_s, val) = take_while1(|c: char| c.is_ascii_digit())(s)?;
-    let val = val.parse::<usize>().map_err(|_| todo!())?;
+    let val = val.input.parse::<usize>().map_err(|_| todo!())?;
     if val == 0 {
         return Err(nom::Err::Error(nom::error::Error::new(
             s,
@@ -89,7 +83,7 @@ pub fn parse_query(i: Span) -> IResult<Span, LocationQuery> {
         (i, None)
     };
 
-    let segment = segment.fragment().to_string();
+    let segment = segment.input.to_string();
     Ok((
         i,
         LocationQuery {

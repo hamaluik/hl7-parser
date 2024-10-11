@@ -33,7 +33,7 @@ fn msh_name<'i>() -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Span<'i>> {
 fn separators<'i>(lenient_newlines: bool) -> impl FnMut(Span<'i>) -> IResult<Span<'i>, Separators> {
     move |i| {
         let (i, seps) = take_while_m_n(5, 5, |c: char| c.is_ascii())(i)?;
-        let mut chars = seps.chars();
+        let mut chars = seps.input.chars();
         let seps = Separators {
             field: chars.next().expect("field separator"),
             component: chars.next().expect("component separator"),
@@ -47,8 +47,8 @@ fn separators<'i>(lenient_newlines: bool) -> impl FnMut(Span<'i>) -> IResult<Spa
 }
 
 fn parse_msh(i: Span<'_>, lenient_newlines: bool) -> IResult<Span<'_>, MSH<'_>> {
-    let input_src = i.fragment();
-    let pos_start = i.location_offset();
+    let input_src = i.input;
+    let pos_start = i.offset;
 
     let (i, _) = msh_name()(i)?;
     let (i, separators) = separators(lenient_newlines)(i)?;
@@ -60,7 +60,7 @@ fn parse_msh(i: Span<'_>, lenient_newlines: bool) -> IResult<Span<'_>, MSH<'_>> 
         ),
     )(i)?;
 
-    let pos_end = i.location_offset();
+    let pos_end = i.offset;
     let msh_src = &input_src[..pos_end];
 
     let field_separator = Field::new_single(&input_src[3..4], 3..4);

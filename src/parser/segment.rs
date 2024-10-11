@@ -18,19 +18,19 @@ pub(crate) fn parse_segment_name(i: Span) -> IResult<Span, Span> {
 }
 
 fn parse_segment(i: Span<'_>, seps: Separators) -> IResult<Span<'_>, Segment<'_>> {
-    let pos_start = i.location_offset();
+    let pos_start = i.offset;
     let (i, (segment_src, (name, v))) = consumed(separated_pair(
         segment_name(),
         char(seps.field),
         separated_list0(char(seps.field), field(seps)),
     ))(i)?;
-    let pos_end = i.location_offset();
+    let pos_end = i.offset;
 
     Ok((
         i,
         Segment {
-            source: segment_src.fragment(),
-            name: name.fragment(),
+            source: segment_src.input,
+            name: name.input,
             fields: v,
             range: pos_start..pos_end,
         },

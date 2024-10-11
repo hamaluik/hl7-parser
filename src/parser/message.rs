@@ -16,7 +16,7 @@ pub fn message<'i>(
 }
 
 fn parse_message(i: Span<'_>, lenient_newlines: bool) -> IResult<Span<'_>, Message<'_>> {
-    let input_src = i.fragment();
+    let input_src = i.input;
     let (i, msh) = msh(lenient_newlines)(i)?;
     let mut separators = msh.separators;
     separators.lenient_newlines = lenient_newlines;
@@ -36,7 +36,7 @@ fn parse_message(i: Span<'_>, lenient_newlines: bool) -> IResult<Span<'_>, Messa
         )(i)?
     };
     segments.insert(0, msh);
-    let pos_end = i.location_offset();
+    let pos_end = i.offset;
     let source = &input_src[..pos_end];
 
     Ok((

@@ -7,12 +7,12 @@ pub fn repeat<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'i>,
 }
 
 fn parse_repeat(i: Span, seps: Separators) -> IResult<Span, Repeat> {
-    let pos_start = i.location_offset();
+    let pos_start = i.offset;
     let (i, (repeat_src, v)) = consumed(separated_list0(char(seps.component), component(seps)))(i)?;
-    let pos_end = i.location_offset();
+    let pos_end = i.offset;
 
     let v = Repeat {
-        source: repeat_src.fragment(),
+        source: repeat_src.input,
         components: v,
         range: pos_start..pos_end,
     };

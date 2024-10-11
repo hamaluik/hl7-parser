@@ -14,7 +14,7 @@ pub fn subcomponent<'i>(
 }
 
 fn subcomponent_parser(i: Span, seps: Separators) -> IResult<Span, Subcomponent<'_>> {
-    let pos_start = i.location_offset();
+    let pos_start = i.offset;
 
     let sep = if seps.lenient_newlines {
         &[
@@ -38,8 +38,8 @@ fn subcomponent_parser(i: Span, seps: Separators) -> IResult<Span, Subcomponent<
     };
     let (i, v) = escaped(none_of(sep), seps.escape, one_of(sep))(i)?;
 
-    let pos_end = i.location_offset();
-    let value = v.fragment();
+    let pos_end = i.offset;
+    let value = v.input;
 
     Ok((
         i,
@@ -108,18 +108,18 @@ mod tests {
         let (input, actual) = subcomponent_parser(input, separators).unwrap();
         assert_eq!(actual.value, "foo");
         assert_eq!(actual.range, 0..3);
-        assert_eq!(input.fragment(), &"\rbar");
+        assert_eq!(input.input, "\rbar");
 
         let input = Span::new("foo\nbar");
         let (input, actual) = subcomponent_parser(input, separators).unwrap();
         assert_eq!(actual.value, "foo");
         assert_eq!(actual.range, 0..3);
-        assert_eq!(input.fragment(), &"\nbar");
+        assert_eq!(input.input, "\nbar");
 
         let input = Span::new("foo\r\nbar");
         let (input, actual) = subcomponent_parser(input, separators).unwrap();
         assert_eq!(actual.value, "foo");
         assert_eq!(actual.range, 0..3);
-        assert_eq!(input.fragment(), &"\r\nbar");
+        assert_eq!(input.input, "\r\nbar");
     }
 }

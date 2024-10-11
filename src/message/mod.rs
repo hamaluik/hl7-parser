@@ -11,8 +11,9 @@ pub use field::*;
 mod segment;
 pub use segment::*;
 
+use crate::locate::LocatedCursor;
+
 use crate::{
-    locate::LocatedCursor,
     parser::ParseError,
     query::{LocationQuery, LocationQueryResult},
 };

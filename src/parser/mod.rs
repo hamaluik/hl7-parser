@@ -1,6 +1,7 @@
 use crate::message::{Component, Field, Repeat, Segment, Separators, Subcomponent};
 
-pub(crate) type Span<'m> = nom_locate::LocatedSpan<&'m str>;
+mod span;
+pub(crate) type Span<'m> = span::Span<'m>;
 
 mod component;
 mod field;
@@ -16,12 +17,10 @@ mod subcomponent;
 pub enum ParseError {
     /// The parsing failed for some reason
     #[error(
-        "Message parsing failed at position {position} (line {line} column {column}): `{fragment}`"
+        "Message parsing failed at position {position}: `{fragment}`"
     )]
     FailedToParse {
         position: usize,
-        line: usize,
-        column: usize,
         fragment: String,
     },
 
@@ -38,14 +37,10 @@ impl<'s> From<nom::Err<nom::error::Error<Span<'s>>>> for ParseError {
                 ParseError::IncompleteInput(Some(size.get()))
             }
             nom::Err::Error(e) | nom::Err::Failure(e) => {
-                let position = e.input.location_offset();
-                let line = e.input.location_line() as usize;
-                let column = e.input.naive_get_utf8_column();
+                let position = e.input.offset;
                 ParseError::FailedToParse {
                     position,
-                    line,
-                    column,
-                    fragment: e.input.fragment().chars().take(7).collect(),
+                    fragment: e.input.input.chars().take(7).collect(),
                 }
             }
         }

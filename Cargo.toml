@@ -16,7 +16,6 @@ unsafe_code = "forbid"
 
 [dependencies]
 nom = "7"
-nom_locate = "4"
 serde = { version = "1", features = ["derive"], optional = true }
 thiserror = "1"
 time = { version = "0.3", optional = true }

@@ -133,7 +133,7 @@ pub fn parse_timestamp<'s>(s: &'s str) -> Result<TimeStamp, TimeParseError> {
     }
 
     fn from_digits<F: FromStr>(i: Span) -> Result<F, F::Err> {
-        i.fragment().parse::<F>()
+        i.input.parse::<F>()
     }
 
     fn digit2<F: FromStr>(input: Span) -> IResult<Span, F> {
@@ -175,10 +175,10 @@ pub fn parse_timestamp<'s>(s: &'s str) -> Result<TimeStamp, TimeParseError> {
     let (s, offset_minutes): (Span, Option<u8>) =
         opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("offset minutes"))?;
 
-    if s.len() > 0 {
+    if !s.is_empty() {
         return Err(TimeParseError::UnexpectedCharacter(
-            s.location_offset(),
-            s.fragment().chars().next().unwrap_or_default(),
+            s.offset,
+            s.input.chars().next().unwrap_or_default(),
         ));
     }
 
@@ -193,7 +193,7 @@ pub fn parse_timestamp<'s>(s: &'s str) -> Result<TimeStamp, TimeParseError> {
             };
             Some(
                 fracs
-                    .fragment()
+                    .input
                     .parse::<u32>()
                     .expect("can parse fractional seconds as number")
                     * fracs_multiplier,

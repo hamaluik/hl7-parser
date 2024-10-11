@@ -7,12 +7,12 @@ pub fn field<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'i>, 
 }
 
 fn parse_field(i: Span, seps: Separators) -> IResult<Span, Field> {
-    let pos_start = i.location_offset();
+    let pos_start = i.offset;
     let (i, (field_src, v)) = consumed(separated_list0(char(seps.repetition), repeat(seps)))(i)?;
-    let pos_end = i.location_offset();
+    let pos_end = i.offset;
 
     let v = Field {
-        source: field_src.fragment(),
+        source: field_src.input,
         repeats: v,
         range: pos_start..pos_end,
     };

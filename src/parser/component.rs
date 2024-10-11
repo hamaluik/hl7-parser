@@ -6,14 +6,14 @@ pub fn component<'i>(seps: Separators) -> impl FnMut(Span<'i>) -> IResult<Span<'
     move |i| parse_component(i, seps)
 }
 
-fn parse_component(i: Span, seps: Separators) -> IResult<Span, Component> {
-    let pos_start = i.location_offset();
+fn parse_component(i: Span<'_>, seps: Separators) -> IResult<Span<'_>, Component<'_>> {
+    let pos_start = i.offset;
     let (i, (component_src, v)) =
         consumed(separated_list0(char(seps.subcomponent), subcomponent(seps)))(i)?;
-    let pos_end = i.location_offset();
+    let pos_end = i.offset;
 
     let v = Component {
-        source: component_src.fragment(),
+        source: component_src.input,
         subcomponents: v,
         range: pos_start..pos_end,
     };
