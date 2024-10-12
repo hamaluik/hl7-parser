@@ -29,7 +29,7 @@ use crate::{
 /// assert_eq!(msh.name, "MSH");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Message<'m> {
     pub(crate) source: &'m str,
     pub segments: Vec<Segment<'m>>,

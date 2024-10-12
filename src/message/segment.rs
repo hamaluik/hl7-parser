@@ -7,7 +7,7 @@ use super::{Field, Separators};
 /// separator character. Each segment has a name, which is the first field in the segment.
 /// Segments are separated by the segment separator character.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Segment<'m> {
     pub(crate) source: &'m str,
     /// The name of the segment

@@ -6,7 +6,7 @@ use std::ops::Range;
 /// A field in an HL7 message. A field is a collection of repeats, separated by the repeat
 /// separator character. Fields are separated by the field separator character.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Field<'m> {
     pub(crate) source: &'m str,
     pub repeats: Vec<Repeat<'m>>,

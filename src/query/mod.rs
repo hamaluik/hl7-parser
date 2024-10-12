@@ -357,7 +357,7 @@ impl LocationQueryBuilder {
 /// The result can be used to get the raw value of the part of the message, or to display the value
 /// using the separators to decode escape sequences.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum LocationQueryResult<'m> {
     Segment(&'m Segment<'m>),
     Field(&'m Field<'m>),

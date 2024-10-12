@@ -8,7 +8,7 @@ use super::{Component, Separators};
 /// repeat is separated by the repetition separator character and is composed of
 /// 0 or more components.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Repeat<'m> {
     pub(crate) source: &'m str,
     /// The components of the repeat
