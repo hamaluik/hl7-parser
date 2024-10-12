@@ -11,6 +11,13 @@ license = "Apache-2.0"
 keywords = ["hl7", "health", "parse", "parser"]
 categories = ["parser-implementations", "science"]
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "./src/bin/profiler.rs"
+name = "profiler"
+
 [lints.rust]
 unsafe_code = "forbid"
 
@@ -52,6 +59,10 @@ harness = false
 [[bench]]
 name = "timestamp"
 harness = false
+
+[profile.profiling]
+inherits = "release"
+debug = true
 
 [package.metadata.docs.rs]
 all-features = true
