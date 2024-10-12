@@ -15,8 +15,8 @@ categories = ["parser-implementations", "science"]
 path = "src/lib.rs"
 
 [[bin]]
-path = "./src/bin/profiler.rs"
-name = "profiler"
+path = "./src/bin/profiled-parse.rs"
+name = "profiled-parse"
 
 [lints.rust]
 unsafe_code = "forbid"
