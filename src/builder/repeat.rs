@@ -203,3 +203,38 @@ impl<'m> From<&'m Repeat<'m>> for RepeatBuilder {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions_sorted::{assert_eq, assert_eq_sorted};
+
+    #[test]
+    fn can_display_repeat_builder() {
+        let separators = Separators::default();
+        let repeat = RepeatBuilder::with_value("value".to_string());
+        let display = repeat.display(&separators).to_string();
+        assert_eq!(display, "value");
+
+        let mut components = HashMap::new();
+        components.insert(1, ComponentBuilder::with_value("foo".to_string()));
+        components.insert(3, ComponentBuilder::with_value("bar".to_string()));
+        let repeat = RepeatBuilder::with_components(components);
+        let display = repeat.display(&separators).to_string();
+        assert_eq!(display, "foo^^bar");
+    }
+
+    #[test]
+    fn can_convert_repeat_to_repeat_builder() {
+        let repeat = crate::parser::parse_repeat("foo^^bar").expect("Can parse repeat");
+        let repeat_builder = RepeatBuilder::from(&repeat);
+        assert_eq_sorted!(repeat_builder, RepeatBuilder::with_components({
+            let mut components = HashMap::new();
+            components.insert(1, ComponentBuilder::with_value("foo".to_string()));
+            components.insert(2, ComponentBuilder::with_value("".to_string()));
+            components.insert(3, ComponentBuilder::with_value("bar".to_string()));
+            components
+        }));
+    }
+}
+

@@ -171,7 +171,7 @@ impl<S: ToString> From<S> for ComponentBuilder {
 
 impl<'m> From<&'m Component<'m>> for ComponentBuilder {
     fn from(component: &'m Component<'m>) -> Self {
-        if component.subcomponents.is_empty() {
+        if component.subcomponents.len() <= 1 {
             ComponentBuilder::Value(component.source.to_string())
         } else {
             let subcomponents = component
@@ -232,5 +232,12 @@ mod tests {
                     .collect()
             )
         );
+    }
+
+    #[test]
+    fn can_convert_with_singular_value() {
+        let component = crate::parser::parse_component("foo").expect("Can parse component");
+        let component_builder = ComponentBuilder::from(&component);
+        assert_eq!(component_builder, ComponentBuilder::with_value("foo".to_string()));
     }
 }

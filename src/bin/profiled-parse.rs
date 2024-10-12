@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-static ADT_SRC: &'static str = include_str!("../../test_assets/sample_adt_a08.hl7");
+static ADT_SRC: &str = include_str!("../../test_assets/sample_adt_a08.hl7");
 
 pub fn main() {
     let start = Instant::now();

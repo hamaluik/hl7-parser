@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::display::{DecodedSeparatorsDisplay, EncodedSeparatorsDisplay};
 
 /// Separators used in HL7 messages
@@ -86,6 +88,16 @@ impl Separators {
     pub fn with_lenient_newlines(&mut self, lenient_newlines: bool) -> Self {
         self.lenient_newlines = lenient_newlines;
         *self
+    }
+}
+
+impl Display for Separators {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}{}",
+            self.field, self.component, self.repetition, self.escape, self.subcomponent
+        )
     }
 }
 
