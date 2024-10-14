@@ -1,4 +1,6 @@
-use crate::message::{Repeat, Separators};
+use display::RepeatBuilderDisplay;
+
+use crate::{message::{Repeat, Separators}, timestamps::TimeStamp};
 use std::{collections::HashMap, fmt::Display};
 
 use super::ComponentBuilder;
@@ -82,19 +84,23 @@ impl RepeatBuilder {
         *self = RepeatBuilder::Value(value.to_string());
     }
 
+    pub fn set_timestamp<T: Into<TimeStamp>>(&mut self, timestamp: T) {
+        *self = RepeatBuilder::Value(timestamp.into().to_string());
+    }
+
     pub fn set_components(&mut self, components: HashMap<usize, ComponentBuilder>) {
         *self = RepeatBuilder::Components(components);
     }
 
-    pub fn set_component(&mut self, index: usize, component: ComponentBuilder) {
+    pub fn set_component<C: Into<ComponentBuilder>>(&mut self, index: usize, component: C) {
         debug_assert!(index > 0, "Component numbers are 1-based");
         match self {
             RepeatBuilder::Components(components) => {
-                components.insert(index, component);
+                components.insert(index, component.into());
             }
             _ => {
                 let mut components = HashMap::new();
-                components.insert(index, component);
+                components.insert(index, component.into());
                 *self = RepeatBuilder::Components(components);
             }
         }
@@ -152,31 +158,45 @@ impl RepeatBuilder {
             separators,
         }
     }
+
+    pub fn from_component_map<I: Into<usize>, C: Into<ComponentBuilder>>(
+        components: HashMap<I, C>,
+    ) -> Self {
+        let components = components
+            .into_iter()
+            .map(|(i, c)| (i.into(), c.into()))
+            .collect();
+        RepeatBuilder::Components(components)
+    }
 }
 
-pub struct RepeatBuilderDisplay<'a> {
-    repeat: &'a RepeatBuilder,
-    separators: &'a Separators,
-}
+mod display {
+    use super::*;
 
-impl<'a> Display for RepeatBuilderDisplay<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.repeat {
-            RepeatBuilder::Value(value) => self.separators.encode(value).fmt(f),
-            RepeatBuilder::Components(components) => {
-                if components.is_empty() {
-                    return Ok(());
-                }
-                let max_index = components.keys().max().unwrap();
-                for i in 1..=*max_index {
-                    if let Some(component) = components.get(&i) {
-                        write!(f, "{}", component.display(self.separators))?;
+    pub struct RepeatBuilderDisplay<'a> {
+        pub(super) repeat: &'a RepeatBuilder,
+        pub(super) separators: &'a Separators,
+    }
+
+    impl<'a> Display for RepeatBuilderDisplay<'a> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self.repeat {
+                RepeatBuilder::Value(value) => self.separators.encode(value).fmt(f),
+                RepeatBuilder::Components(components) => {
+                    if components.is_empty() {
+                        return Ok(());
                     }
-                    if i < *max_index {
-                        write!(f, "{}", self.separators.component)?;
+                    let max_index = components.keys().max().unwrap();
+                    for i in 1..=*max_index {
+                        if let Some(component) = components.get(&i) {
+                            write!(f, "{}", component.display(self.separators))?;
+                        }
+                        if i < *max_index {
+                            write!(f, "{}", self.separators.component)?;
+                        }
                     }
+                    Ok(())
                 }
-                Ok(())
             }
         }
     }

@@ -1,6 +1,8 @@
 use std::{collections::HashMap, fmt::Display};
 
-use crate::message::{Component, Separators};
+use display::ComponentBuilderDisplay;
+
+use crate::{message::{Component, Separators}, timestamps::TimeStamp};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -74,6 +76,10 @@ impl ComponentBuilder {
         *self = ComponentBuilder::Value(value.to_string());
     }
 
+    pub fn set_timestamp<T: Into<TimeStamp>>(&mut self, timestamp: T) {
+        *self = ComponentBuilder::Value(timestamp.into().to_string());
+    }
+
     pub fn set_subcomponents(&mut self, subcomponents: HashMap<usize, String>) {
         *self = ComponentBuilder::Subcomponents(subcomponents);
     }
@@ -90,6 +96,20 @@ impl ComponentBuilder {
                 *self = ComponentBuilder::Subcomponents(subcomponents);
             }
         }
+    }
+
+    pub fn with_subcomponent<S: ToString>(mut self, index: usize, value: S) -> Self {
+        self.set_subcomponent(index, value);
+        self
+    }
+
+    pub fn set_subcomponent_timestamp<T: Into<TimeStamp>>(&mut self, index: usize, timestamp: T,) {
+        self.set_subcomponent(index, timestamp.into().to_string());
+    }
+
+    pub fn with_subcomponent_timestamp<T: Into<TimeStamp>>(mut self, index: usize, timestamp: T) -> Self {
+        self.set_subcomponent_timestamp(index, timestamp);
+        self
     }
 
     pub fn subcomponent(&self, index: usize) -> Option<&String> {
@@ -135,29 +155,33 @@ impl ComponentBuilder {
     }
 }
 
-pub struct ComponentBuilderDisplay<'a> {
-    component: &'a ComponentBuilder,
-    separators: &'a Separators,
-}
+mod display {
+    use super::*;
 
-impl Display for ComponentBuilderDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.component {
-            ComponentBuilder::Value(value) => self.separators.encode(value).fmt(f),
-            ComponentBuilder::Subcomponents(subcomponents) => {
-                if subcomponents.is_empty() {
-                    return Ok(());
-                }
-                let max_index = subcomponents.keys().max().unwrap();
-                for i in 1..=*max_index {
-                    if let Some(value) = subcomponents.get(&i) {
-                        self.separators.encode(value).fmt(f)?;
+    pub struct ComponentBuilderDisplay<'a> {
+        pub(super) component: &'a ComponentBuilder,
+        pub(super) separators: &'a Separators,
+    }
+
+    impl Display for ComponentBuilderDisplay<'_> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self.component {
+                ComponentBuilder::Value(value) => self.separators.encode(value).fmt(f),
+                ComponentBuilder::Subcomponents(subcomponents) => {
+                    if subcomponents.is_empty() {
+                        return Ok(());
                     }
-                    if i < *max_index {
-                        write!(f, "{}", self.separators.subcomponent)?;
+                    let max_index = subcomponents.keys().max().unwrap();
+                    for i in 1..=*max_index {
+                        if let Some(value) = subcomponents.get(&i) {
+                            self.separators.encode(value).fmt(f)?;
+                        }
+                        if i < *max_index {
+                            write!(f, "{}", self.separators.subcomponent)?;
+                        }
                     }
+                    Ok(())
                 }
-                Ok(())
             }
         }
     }

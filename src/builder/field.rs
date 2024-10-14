@@ -1,8 +1,10 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
-use crate::message::{Field, Separators};
+use display::FieldBuilderDisplay;
 
-use super::RepeatBuilder;
+use crate::{message::{Field, Separators}, timestamps::TimeStamp};
+
+use super::{ComponentBuilder, RepeatBuilder};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -83,8 +85,41 @@ impl FieldBuilder {
         *self = FieldBuilder::Value(value);
     }
 
+    pub fn set_timestamp<T: Into<TimeStamp>>(&mut self, timestamp: T) {
+        *self = FieldBuilder::Value(timestamp.into().to_string());
+    }
+
     pub fn set_repeats(&mut self, repeats: Vec<RepeatBuilder>) {
         *self = FieldBuilder::Repeats(repeats);
+    }
+
+    pub fn set_component<C: Into<ComponentBuilder>>(&mut self, index: usize, component: C) {
+        let component = component.into();
+        match self {
+            FieldBuilder::Repeats(repeats) => {
+                if let Some(repeat) = repeats.last_mut() {
+                    repeat.set_component(index, component);
+                } else {
+                    let mut repeat = RepeatBuilder::default();
+                    repeat.set_component(index, component);
+                    repeats.push(repeat);
+                }
+            }
+            _ => {
+                let mut repeat = RepeatBuilder::default();
+                repeat.set_component(index, component);
+                *self = FieldBuilder::Repeats(vec![repeat]);
+            }
+        }
+    }
+
+    pub fn with_component<C: Into<ComponentBuilder>>(mut self, index: usize, component: C) -> Self {
+        self.set_component(index, component);
+        self
+    }
+
+    pub fn with_component_value<S: ToString>(self, index: usize, value: S) -> Self {
+        self.with_component(index, ComponentBuilder::Value(value.to_string()))
     }
 
     pub fn push_repeat(&mut self, repeat: RepeatBuilder) {
@@ -131,28 +166,49 @@ impl FieldBuilder {
             separators,
         }
     }
+
+    pub fn from_component_map<I: Into<usize>, C: Into<ComponentBuilder>>(
+        components: HashMap<I, C>,
+    ) -> Self {
+        let repeat = RepeatBuilder::from_component_map(components);
+        FieldBuilder::Repeats(vec![repeat])
+    }
+
+    pub fn from_repeats_map<I: Into<usize>, C: Into<ComponentBuilder>, V: IntoIterator<Item = HashMap<I, C>>>(
+        repeats: V,
+    ) -> Self {
+        let repeats = repeats
+            .into_iter()
+            .map(|components| RepeatBuilder::from_component_map(components))
+            .collect();
+        FieldBuilder::Repeats(repeats)
+    }
 }
 
-pub struct FieldBuilderDisplay<'a> {
-    field: &'a FieldBuilder,
-    separators: &'a Separators,
-}
+mod display {
+    use super::*;
 
-impl<'a> Display for FieldBuilderDisplay<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.field {
-            FieldBuilder::Value(value) => self.separators.encode(value).fmt(f),
-            FieldBuilder::Repeats(repeats) => {
-                let mut first = true;
-                for repeat in repeats {
-                    if first {
-                        first = false;
-                    } else {
-                        write!(f, "{}", self.separators.repetition)?;
+    pub struct FieldBuilderDisplay<'a> {
+        pub(super) field: &'a FieldBuilder,
+        pub(super) separators: &'a Separators,
+    }
+
+    impl<'a> Display for FieldBuilderDisplay<'a> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self.field {
+                FieldBuilder::Value(value) => self.separators.encode(value).fmt(f),
+                FieldBuilder::Repeats(repeats) => {
+                    let mut first = true;
+                    for repeat in repeats {
+                        if first {
+                            first = false;
+                        } else {
+                            write!(f, "{}", self.separators.repetition)?;
+                        }
+                        write!(f, "{}", repeat.display(self.separators))?;
                     }
-                    write!(f, "{}", repeat.display(self.separators))?;
+                    Ok(())
                 }
-                Ok(())
             }
         }
     }
