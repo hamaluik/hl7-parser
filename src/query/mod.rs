@@ -384,6 +384,18 @@ impl<'m> LocationQueryResult<'m> {
         }
     }
 
+    /// Get the range of the result within the message. This is the character range of the result
+    /// within the message, including the separators.
+    pub fn range(&self) -> std::ops::Range<usize> {
+        match self {
+            LocationQueryResult::Segment(seg) => seg.range.clone(),
+            LocationQueryResult::Field(field) => field.range.clone(),
+            LocationQueryResult::Repeat(repeat) => repeat.range.clone(),
+            LocationQueryResult::Component(component) => component.range.clone(),
+            LocationQueryResult::Subcomponent(subcomponent) => subcomponent.range.clone(),
+        }
+    }
+
     /// Display the result, using the separators to decode escape sequences
     /// by default. Note: if you want to display the raw value without decoding escape
     /// sequences, use the `#` flag, e.g. `format!("{:#}", result.display(separators))`.
