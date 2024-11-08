@@ -8,19 +8,12 @@ use super::FieldBuilder;
 /// A builder for constructing HL7 segments.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Default)]
 pub struct SegmentBuilder {
     pub name: String,
     pub fields: HashMap<usize, FieldBuilder>,
 }
 
-impl Default for SegmentBuilder {
-    fn default() -> Self {
-        SegmentBuilder {
-            name: String::new(),
-            fields: HashMap::new(),
-        }
-    }
-}
 
 impl SegmentBuilder {
     /// Create a new segment builder with the given name. No fields are added.
@@ -100,7 +93,7 @@ impl SegmentBuilder {
     /// Set the value of a field in the segment. (1-based)
     pub fn set_field_value<S: ToString>(&mut self, index: usize, value: S) {
         debug_assert!(index > 0, "Field numbers are 1-based");
-        let field = self.fields.entry(index).or_insert(FieldBuilder::default());
+        let field = self.fields.entry(index).or_default();
         field.set_value(value.to_string());
     }
 
@@ -126,8 +119,8 @@ impl SegmentBuilder {
 }
 
 mod display {
-    use crate::message::Separators;
     use super::*;
+    use crate::message::Separators;
 
     /// Display implementation for `SegmentBuilder`, to render the segment as a string.
     pub struct SegmentBuilderDisplay<'a> {

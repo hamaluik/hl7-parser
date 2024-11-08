@@ -3,8 +3,12 @@ static ADT_SRC: &str = include_str!("../test_assets/sample_adt_a08.hl7");
 pub fn main() {
     let message = hl7_parser::parse_message(ADT_SRC).expect("can parse ADT");
 
-    let timestamp_raw = message.query("MSH.7").expect("can query message").raw_value();
-    let timestamp = hl7_parser::timestamps::parse_timestamp(timestamp_raw).expect("can parse timestamp");
+    let timestamp_raw = message
+        .query("MSH.7")
+        .expect("can query message")
+        .raw_value();
+    let timestamp =
+        hl7_parser::datetime::parse_timestamp(timestamp_raw, false).expect("can parse timestamp");
 
     #[cfg(feature = "chrono")]
     {
@@ -25,4 +29,3 @@ pub fn main() {
         println!("Parsed timestamp: {timestamp}");
     }
 }
-

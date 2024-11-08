@@ -291,8 +291,7 @@ impl LocationQueryBuilder {
                 return Err(LocationQueryBuildError::InvalidSegmentName);
             }
             segment
-        }
-        else {
+        } else {
             return Err(LocationQueryBuildError::MissingSegment);
         };
 

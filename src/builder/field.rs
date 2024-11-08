@@ -1,10 +1,10 @@
-use std::{collections::HashMap, fmt::Display};
-
-use display::FieldBuilderDisplay;
-
-use crate::{message::{Field, Separators}, timestamps::TimeStamp};
-
 use super::{ComponentBuilder, RepeatBuilder};
+use crate::{
+    datetime::TimeStamp,
+    message::{Field, Separators},
+};
+use display::FieldBuilderDisplay;
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -174,7 +174,11 @@ impl FieldBuilder {
         FieldBuilder::Repeats(vec![repeat])
     }
 
-    pub fn from_repeats_map<I: Into<usize>, C: Into<ComponentBuilder>, V: IntoIterator<Item = HashMap<I, C>>>(
+    pub fn from_repeats_map<
+        I: Into<usize>,
+        C: Into<ComponentBuilder>,
+        V: IntoIterator<Item = HashMap<I, C>>,
+    >(
         repeats: V,
     ) -> Self {
         let repeats = repeats

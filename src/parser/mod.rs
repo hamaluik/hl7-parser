@@ -16,13 +16,8 @@ mod subcomponent;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ParseError {
     /// The parsing failed for some reason
-    #[error(
-        "Message parsing failed at position {position}: `{fragment}`"
-    )]
-    FailedToParse {
-        position: usize,
-        fragment: String,
-    },
+    #[error("Message parsing failed at position {position}: `{fragment}`")]
+    FailedToParse { position: usize, fragment: String },
 
     /// The input was incomplete
     #[error("Message parsing failed because of incomplete input.{}", .0.map(|s| format!(" Need at least {s} more characters to continue.")).unwrap_or_default())]

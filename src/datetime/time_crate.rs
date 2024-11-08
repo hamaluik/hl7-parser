@@ -11,7 +11,7 @@
 //! # Examples
 //!
 //! ```
-//! use hl7_parser::timestamps::{TimeStamp, TimeStampOffset};
+//! use hl7_parser::datetime::{TimeStamp, TimeStampOffset};
 //! use time::{PrimitiveDateTime, OffsetDateTime};
 //!
 //! let ts = TimeStamp {
@@ -41,10 +41,10 @@
 
 use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
-use super::{TimeComponent, TimeParseError, TimeStamp, TimeStampOffset};
+use super::{DateTimeParseError, ErroredDateTimeComponent, TimeStamp, TimeStampOffset};
 
 impl TryFrom<TimeStamp> for Date {
-    type Error = TimeParseError;
+    type Error = DateTimeParseError;
 
     fn try_from(value: TimeStamp) -> Result<Self, Self::Error> {
         let TimeStamp {
@@ -53,14 +53,50 @@ impl TryFrom<TimeStamp> for Date {
 
         match (year, month, day) {
             (year, Some(month), Some(day)) => {
-                let month = Month::try_from(month as u8)
-                    .map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Month))?;
+                let month = Month::try_from(month).map_err(|_| {
+                    DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Month)
+                })?;
 
-                Ok(Date::from_calendar_date(year.into(), month, day)
-                    .map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Date))?)
+                Ok(
+                    Date::from_calendar_date(year.into(), month, day).map_err(|_| {
+                        DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Date)
+                    })?,
+                )
             }
-            (_year, Some(_), None) => Err(TimeParseError::MissingComponent(TimeComponent::Day)),
-            (_year, None, _) => Err(TimeParseError::MissingComponent(TimeComponent::Month)),
+            (_year, Some(_), None) => Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Day,
+            )),
+            (_year, None, _) => Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Month,
+            )),
+        }
+    }
+}
+
+impl TryFrom<super::Date> for Date {
+    type Error = DateTimeParseError;
+
+    fn try_from(value: super::Date) -> Result<Self, Self::Error> {
+        let super::Date { year, month, day } = value;
+
+        match (year, month, day) {
+            (year, Some(month), Some(day)) => {
+                let month = Month::try_from(month).map_err(|_| {
+                    DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Month)
+                })?;
+
+                Ok(
+                    Date::from_calendar_date(year.into(), month, day).map_err(|_| {
+                        DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Date)
+                    })?,
+                )
+            }
+            (_year, Some(_), None) => Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Day,
+            )),
+            (_year, None, _) => Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Month,
+            )),
         }
     }
 }
@@ -82,20 +118,38 @@ impl From<Date> for TimeStamp {
     }
 }
 
+impl From<Date> for super::Date {
+    fn from(value: Date) -> Self {
+        let (year, month, day) = value.to_calendar_date();
+
+        super::Date {
+            year: year as u16,
+            month: Some(month as u8),
+            day: Some(day),
+        }
+    }
+}
+
 impl TryFrom<TimeStamp> for PrimitiveDateTime {
-    type Error = TimeParseError;
+    type Error = DateTimeParseError;
 
     fn try_from(value: TimeStamp) -> Result<Self, Self::Error> {
         let date = Date::try_from(value)?;
 
         if value.hour.is_none() {
-            return Err(TimeParseError::MissingComponent(TimeComponent::Hour));
+            return Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Hour,
+            ));
         }
         if value.minute.is_none() {
-            return Err(TimeParseError::MissingComponent(TimeComponent::Minute));
+            return Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Minute,
+            ));
         }
         if value.second.is_none() {
-            return Err(TimeParseError::MissingComponent(TimeComponent::Second));
+            return Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Second,
+            ));
         }
 
         let TimeStamp {
@@ -112,9 +166,42 @@ impl TryFrom<TimeStamp> for PrimitiveDateTime {
             second.unwrap(),
             microsecond.unwrap_or(0),
         )
-        .map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Time))?;
+        .map_err(|_| DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Time))?;
 
         Ok(PrimitiveDateTime::new(date, time))
+    }
+}
+
+impl TryFrom<super::Time> for Time {
+    type Error = DateTimeParseError;
+
+    fn try_from(value: super::Time) -> Result<Self, Self::Error> {
+        if value.minute.is_none() {
+            return Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Minute,
+            ));
+        }
+        if value.second.is_none() {
+            return Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Second,
+            ));
+        }
+
+        let super::Time {
+            hour,
+            minute,
+            second,
+            microsecond,
+            ..
+        } = value;
+
+        Time::from_hms_micro(
+            hour,
+            minute.unwrap(),
+            second.unwrap(),
+            microsecond.unwrap_or(0),
+        )
+        .map_err(|_| DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Time))
     }
 }
 
@@ -136,18 +223,33 @@ impl From<PrimitiveDateTime> for TimeStamp {
     }
 }
 
+impl From<Time> for super::Time {
+    fn from(value: Time) -> Self {
+        super::Time {
+            hour: value.hour(),
+            minute: Some(value.minute()),
+            second: Some(value.second()),
+            microsecond: Some(value.microsecond()),
+            offset: None,
+        }
+    }
+}
+
 impl TryFrom<TimeStamp> for OffsetDateTime {
-    type Error = TimeParseError;
+    type Error = DateTimeParseError;
 
     fn try_from(value: TimeStamp) -> Result<Self, Self::Error> {
         if value.offset.is_none() {
-            return Err(TimeParseError::MissingComponent(TimeComponent::Offset));
+            return Err(DateTimeParseError::MissingComponent(
+                ErroredDateTimeComponent::Offset,
+            ));
         }
 
         let datetime = PrimitiveDateTime::try_from(value)?;
         let offset = value.offset.unwrap();
-        let offset = UtcOffset::from_hms(offset.hours, offset.minutes as i8, 0)
-            .map_err(|_| TimeParseError::InvalidComponentRange(TimeComponent::Offset))?;
+        let offset = UtcOffset::from_hms(offset.hours, offset.minutes as i8, 0).map_err(|_| {
+            DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Offset)
+        })?;
 
         let date = datetime.date();
         let time = datetime.time();
@@ -172,7 +274,7 @@ impl From<OffsetDateTime> for TimeStamp {
             microsecond: Some(time.microsecond()),
             offset: Some(TimeStampOffset {
                 hours: offset.whole_hours(),
-                minutes: (offset.whole_minutes() % 60).abs() as u8,
+                minutes: (offset.whole_minutes() % 60).unsigned_abs() as u8,
             }),
         }
     }

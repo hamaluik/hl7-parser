@@ -6,7 +6,7 @@
 //! # Examples
 //!
 //! ```
-//! use hl7_parser::{Message, timestamps::TimeStamp};
+//! use hl7_parser::{Message, datetime::TimeStamp};
 //! use std::str::FromStr;
 //!
 //! let message =
@@ -45,7 +45,7 @@ pub mod parser;
 
 /// Timestamp parsing and utilities to translate to and from the `chrono` and
 /// `time` crates.
-pub mod timestamps;
+pub mod datetime;
 
 /// Parses an HL7 message into a structured form. Equivalent to calling `Message::parse(message)`.
 pub fn parse_message(message: &str) -> Result<Message, parser::ParseError> {

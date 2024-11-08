@@ -8,63 +8,7 @@ use nom::{
 };
 use std::{fmt::Display, str::FromStr};
 
-/// Utilities to convert back and forth between `TimeStamp`s and `chrono`'s `DateTime` and
-/// `NaiveDateTime`
-#[cfg(feature = "chrono")]
-pub mod chrono;
-
-/// Utilities to convert back and forth between `TimeStamp`s and `time`'s `OffsetDateTime`
-/// and `PrimitiveDateTime`
-#[cfg(feature = "time")]
-pub mod time;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum TimeComponent {
-    Year,
-    Month,
-    Day,
-    Hour,
-    Minute,
-    Second,
-    Microsecond,
-    Offset,
-    Date,
-    Time,
-    DateTime,
-}
-
-impl Display for TimeComponent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TimeComponent::Year => write!(f, "year"),
-            TimeComponent::Month => write!(f, "month"),
-            TimeComponent::Day => write!(f, "day"),
-            TimeComponent::Hour => write!(f, "hour"),
-            TimeComponent::Minute => write!(f, "minute"),
-            TimeComponent::Second => write!(f, "second"),
-            TimeComponent::Microsecond => write!(f, "microsecond"),
-            TimeComponent::Offset => write!(f, "offset"),
-            TimeComponent::Date => write!(f, "date"),
-            TimeComponent::Time => write!(f, "time"),
-            TimeComponent::DateTime => write!(f, "date and time"),
-        }
-    }
-}
-
-/// Errors that can result from parsing HL7 timestamps
-#[derive(thiserror::Error, Debug)]
-pub enum TimeParseError {
-    #[error("Failed to parse '{0}' component of timestamp")]
-    ParsingFailed(&'static str),
-    #[error("Unexpected character '{1}' in timestamp at position {0}")]
-    UnexpectedCharacter(usize, char),
-    #[error("Invalid component range: {0:}")]
-    InvalidComponentRange(TimeComponent),
-    #[error("Ambiguous time, could be {0} or {1}")]
-    AmbiguousTime(String, String),
-    #[error("Missing component: {0:}")]
-    MissingComponent(TimeComponent),
-}
+use super::DateTimeParseError;
 
 /// A parsed timezone offset in hours and minutes
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
@@ -108,12 +52,17 @@ pub struct TimeStamp {
 
 /// Parse an HL7 timestamp in the format: `YYYY[MM[DD[HH[MM[SS[.S[S[S[S]]]]]]]]][+/-ZZZZ]`
 ///
+/// # Arguments
+/// * `s` - The string to parse
+/// * `lenient_trailing_chars` - If true, allow trailing characters after the timestamp, otherwise
+///   throw an error
+///
 /// # Example
 ///
 /// ```
-/// use hl7_parser::timestamps::{parse_timestamp, TimeStamp, TimeStampOffset};
+/// use hl7_parser::datetime::{parse_timestamp, TimeStamp, TimeStampOffset};
 ///
-/// let ts: TimeStamp = parse_timestamp("20230312195905.1234-0700").expect("can parse timestamp");
+/// let ts: TimeStamp = parse_timestamp("20230312195905.1234-0700", false).expect("can parse timestamp");
 ///
 /// assert_eq!(ts.year, 2023);
 /// assert_eq!(ts.month, Some(3));
@@ -127,7 +76,10 @@ pub struct TimeStamp {
 ///     minutes: 0,
 /// }));
 /// ```
-pub fn parse_timestamp<'s>(s: &'s str) -> Result<TimeStamp, TimeParseError> {
+pub fn parse_timestamp<'s>(
+    s: &'s str,
+    lenient_trailing_chars: bool,
+) -> Result<TimeStamp, DateTimeParseError> {
     fn is_decimal_digit(c: char) -> bool {
         c.is_ascii_digit()
     }
@@ -145,24 +97,25 @@ pub fn parse_timestamp<'s>(s: &'s str) -> Result<TimeStamp, TimeParseError> {
     }
 
     let s = Span::new(s);
-    let (s, year): (Span, u16) = digit4(s).map_err(|_| TimeParseError::ParsingFailed("year"))?;
+    let (s, year): (Span, u16) =
+        digit4(s).map_err(|_| DateTimeParseError::ParsingFailed("year"))?;
     let (s, month): (Span, Option<u8>) =
-        opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("month"))?;
+        opt(digit2)(s).map_err(|_| DateTimeParseError::ParsingFailed("month"))?;
     let (s, day): (Span, Option<u8>) =
-        opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("day"))?;
+        opt(digit2)(s).map_err(|_| DateTimeParseError::ParsingFailed("day"))?;
     let (s, hour): (Span, Option<u8>) =
-        opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("hour"))?;
+        opt(digit2)(s).map_err(|_| DateTimeParseError::ParsingFailed("hour"))?;
     let (s, minute): (Span, Option<u8>) =
-        opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("minute"))?;
+        opt(digit2)(s).map_err(|_| DateTimeParseError::ParsingFailed("minute"))?;
     let (s, second): (Span, Option<u8>) =
-        opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("second"))?;
+        opt(digit2)(s).map_err(|_| DateTimeParseError::ParsingFailed("second"))?;
     let (s, second_fracs) = opt(preceded(tag("."), take_while_m_n(1, 4, is_decimal_digit)))(s)
         .map_err(|_: nom::Err<nom::error::Error<Span<'s>>>| {
-            TimeParseError::ParsingFailed("fractional seconds")
+            DateTimeParseError::ParsingFailed("fractional seconds")
         })?;
     let (s, offset_dir) =
         opt(one_of("+-"))(s).map_err(|_: nom::Err<nom::error::Error<Span<'s>>>| {
-            TimeParseError::ParsingFailed("offset direction")
+            DateTimeParseError::ParsingFailed("offset direction")
         })?;
 
     let offset_dir = match offset_dir.unwrap_or('+') {
@@ -170,13 +123,13 @@ pub fn parse_timestamp<'s>(s: &'s str) -> Result<TimeStamp, TimeParseError> {
         _ => 1i8,
     };
     let (s, offset_hours): (Span, Option<i8>) =
-        opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("offset hours"))?;
+        opt(digit2)(s).map_err(|_| DateTimeParseError::ParsingFailed("offset hours"))?;
     let offset_hours = offset_hours.map(|h| h * offset_dir);
     let (s, offset_minutes): (Span, Option<u8>) =
-        opt(digit2)(s).map_err(|_| TimeParseError::ParsingFailed("offset minutes"))?;
+        opt(digit2)(s).map_err(|_| DateTimeParseError::ParsingFailed("offset minutes"))?;
 
-    if !s.is_empty() {
-        return Err(TimeParseError::UnexpectedCharacter(
+    if !lenient_trailing_chars && !s.is_empty() {
+        return Err(DateTimeParseError::UnexpectedCharacter(
             s.offset,
             s.input.chars().next().unwrap_or_default(),
         ));
@@ -221,11 +174,11 @@ pub fn parse_timestamp<'s>(s: &'s str) -> Result<TimeStamp, TimeParseError> {
 
 /// Implement `FromStr` for `TimeStamp` to allow parsing timestamps from strings
 impl FromStr for TimeStamp {
-    type Err = TimeParseError;
+    type Err = DateTimeParseError;
 
     /// Synonymous with `parse_timestamp`
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_timestamp(s)
+        parse_timestamp(s, false)
     }
 }
 
@@ -267,7 +220,7 @@ mod test {
     #[test]
     fn can_parse_time_with_offsets() {
         let ts = "20230312195905.1234-0700";
-        let ts = parse_timestamp(ts).expect("can parse timestamp");
+        let ts = parse_timestamp(ts, false).expect("can parse timestamp");
 
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, Some(3));
@@ -288,7 +241,7 @@ mod test {
     #[test]
     fn can_parse_time_without_offsets() {
         let ts = "20230312195905.1234";
-        let ts = parse_timestamp(ts).expect("can parse timestamp");
+        let ts = parse_timestamp(ts, false).expect("can parse timestamp");
 
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, Some(3));
@@ -303,7 +256,7 @@ mod test {
     #[test]
     fn can_parse_time_without_offsets_or_fractional_seconds() {
         let ts = "20230312195905";
-        let ts = parse_timestamp(ts).expect("can parse timestamp");
+        let ts = parse_timestamp(ts, false).expect("can parse timestamp");
 
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, Some(3));
@@ -318,7 +271,7 @@ mod test {
     #[test]
     fn can_parse_time_with_offsets_without_fractional_seconds() {
         let ts = "20230312195905-0700";
-        let ts = parse_timestamp(ts).expect("can parse timestamp");
+        let ts = parse_timestamp(ts, false).expect("can parse timestamp");
 
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, Some(3));
@@ -339,7 +292,7 @@ mod test {
     #[test]
     fn can_parse_time_with_only_year() {
         let ts = "2023";
-        let ts = parse_timestamp(ts).expect("can parse timestamp");
+        let ts = parse_timestamp(ts, false).expect("can parse timestamp");
 
         assert_eq!(ts.year, 2023);
         assert_eq!(ts.month, None);
@@ -353,9 +306,9 @@ mod test {
 
     #[test]
     fn cant_parse_bad_timestamps() {
-        assert!(parse_timestamp("23").is_err());
-        assert!(parse_timestamp("abcd").is_err());
-        assert!(parse_timestamp("202303121959051").is_err());
+        assert!(parse_timestamp("23", false).is_err());
+        assert!(parse_timestamp("abcd", false).is_err());
+        assert!(parse_timestamp("202303121959051", false).is_err());
     }
 
     #[test]

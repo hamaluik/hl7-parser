@@ -60,19 +60,12 @@ pub mod prelude {
 /// A builder for constructing HL7 messages.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Default)]
 pub struct MessageBuilder {
     separators: Separators,
     segments: Vec<SegmentBuilder>,
 }
 
-impl Default for MessageBuilder {
-    fn default() -> Self {
-        MessageBuilder {
-            separators: Separators::default(),
-            segments: Vec::new(),
-        }
-    }
-}
 
 impl MessageBuilder {
     /// Create a new message builder with the given separators. No segments are added.
@@ -205,7 +198,7 @@ impl MessageBuilder {
     /// Display the message with the default line endings for the current platform.
     ///
     /// On Windows, this will use `\r\n` as the line ending. On other platforms, it will use `\n`.
-    pub fn render_with_newlines<'a>(&'a self) -> MessageBuilderDisplay<'a> {
+    pub fn render_with_newlines(&self) -> MessageBuilderDisplay<'_> {
         MessageBuilderDisplay {
             message: self,
             #[cfg(windows)]

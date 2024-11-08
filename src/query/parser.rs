@@ -15,10 +15,7 @@ use thiserror::Error;
 pub enum QueryParseError {
     /// The parsing failed for some reason
     #[error("Query parsing failed at position {position}: `{fragment}`")]
-    FailedToParse {
-        position: usize,
-        fragment: String,
-    },
+    FailedToParse { position: usize, fragment: String },
 
     /// The input was incomplete
     #[error("Query parsing failed because of incomplete input.{}", .0.map(|s| format!(" Need at least {s} more characters to continue.")).unwrap_or_default())]

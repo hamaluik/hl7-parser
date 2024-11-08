@@ -8,4 +8,3 @@ pub fn main() {
     let as_json = serde_json::to_string_pretty(&message).expect("can serialize to JSON");
     println!("{}", as_json);
 }
-

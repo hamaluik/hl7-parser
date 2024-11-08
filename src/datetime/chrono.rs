@@ -11,7 +11,7 @@
 //! # Examples
 //!
 //! ```
-//! use hl7_parser::timestamps::{TimeStamp, TimeStampOffset};
+//! use hl7_parser::datetime::{TimeStamp, TimeStampOffset};
 //! use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc, Datelike, Timelike};
 //!
 //! let ts = TimeStamp {
@@ -41,7 +41,7 @@
 //! ```
 //!
 //! ```
-//! use hl7_parser::timestamps::{TimeStamp, TimeStampOffset};
+//! use hl7_parser::datetime::{TimeStamp, TimeStampOffset};
 //! use chrono::{DateTime, Utc, NaiveDate, TimeZone};
 //!
 //! let datetime = Utc.from_utc_datetime(
@@ -63,7 +63,7 @@
 //! }));
 //! ```
 
-use super::{TimeComponent, TimeParseError, TimeStamp, TimeStampOffset};
+use super::{Date, DateTimeParseError, ErroredDateTimeComponent, Time, TimeStamp, TimeStampOffset};
 use chrono::{
     offset::LocalResult, DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime,
     TimeZone, Timelike,
@@ -72,7 +72,7 @@ use chrono::{
 /// Attempt to convert a `TimeStamp` into a `NaiveDate`. If the `TimeStamp` is
 /// missing date components, those components will be set to `1`.
 impl TryFrom<TimeStamp> for NaiveDate {
-    type Error = TimeParseError;
+    type Error = DateTimeParseError;
 
     fn try_from(value: TimeStamp) -> Result<Self, Self::Error> {
         let TimeStamp {
@@ -82,9 +82,55 @@ impl TryFrom<TimeStamp> for NaiveDate {
         let month = month.unwrap_or(1);
         let day = day.unwrap_or(1);
 
-        let date = NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32)
-            .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Date))?;
+        let date = NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32).ok_or(
+            DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Date),
+        )?;
         Ok(date)
+    }
+}
+
+/// Attempt to convert a `Date` into a `NaiveDate`. If the `Date` is missing
+/// date components, those components will be set to `1`.
+impl TryFrom<Date> for NaiveDate {
+    type Error = DateTimeParseError;
+
+    fn try_from(value: Date) -> Result<Self, Self::Error> {
+        let Date { year, month, day } = value;
+
+        let month = month.unwrap_or(1);
+        let day = day.unwrap_or(1);
+
+        let date = NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32).ok_or(
+            DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Date),
+        )?;
+        Ok(date)
+    }
+}
+
+/// Attempt to convert a `TimeStamp` into a `NaiveTime`. If the `TimeStamp` is
+/// missing time components, those components will be set to zero.
+impl TryFrom<Time> for NaiveTime {
+    type Error = DateTimeParseError;
+
+    fn try_from(value: Time) -> Result<Self, Self::Error> {
+        let Time {
+            hour,
+            minute,
+            second,
+            microsecond,
+            ..
+        } = value;
+
+        let minute = minute.unwrap_or(0);
+        let second = second.unwrap_or(0);
+        let microsecond = microsecond.unwrap_or(0);
+
+        let time =
+            NaiveTime::from_hms_micro_opt(hour as u32, minute as u32, second as u32, microsecond)
+                .ok_or(DateTimeParseError::InvalidComponentRange(
+                ErroredDateTimeComponent::Time,
+            ))?;
+        Ok(time)
     }
 }
 
@@ -114,10 +160,39 @@ impl From<NaiveDate> for TimeStamp {
     }
 }
 
+/// Convert a `NaiveDate` into a `Date`. The `Date` will have the date
+/// components set to the `NaiveDate`'s components
+impl From<NaiveDate> for Date {
+    fn from(value: NaiveDate) -> Self {
+        let year = value.year() as u16;
+        let month = Some(value.month() as u8);
+        let day = Some(value.day() as u8);
+        Date { year, month, day }
+    }
+}
+
+/// Convert a `NaiveTime` into a `Time`. The `Time` will have the time components
+/// set to the `NaiveTime`'s components and the offset components set to `None`.
+impl From<NaiveTime> for Time {
+    fn from(value: NaiveTime) -> Self {
+        let hour = value.hour() as u8;
+        let minute = Some(value.minute() as u8);
+        let second = Some(value.second() as u8);
+        let microsecond = Some(value.nanosecond() / 1000);
+        Time {
+            hour,
+            minute,
+            second,
+            microsecond,
+            offset: None,
+        }
+    }
+}
+
 /// Attempt to convert a `TimeStamp` into a `NaiveDateTime`. If the `TimeStamp`
 /// is missing time components, those components will be set to zero.
 impl TryFrom<TimeStamp> for NaiveDateTime {
-    type Error = TimeParseError;
+    type Error = DateTimeParseError;
 
     fn try_from(value: TimeStamp) -> Result<Self, Self::Error> {
         let date = NaiveDate::try_from(value)?;
@@ -127,7 +202,9 @@ impl TryFrom<TimeStamp> for NaiveDateTime {
             value.second.unwrap_or(0) as u32,
             value.microsecond.unwrap_or(0),
         )
-        .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Time))?;
+        .ok_or(DateTimeParseError::InvalidComponentRange(
+            ErroredDateTimeComponent::Time,
+        ))?;
         Ok(NaiveDateTime::new(date, time))
     }
 }
@@ -164,7 +241,7 @@ impl From<NaiveDateTime> for TimeStamp {
 /// to zero. If the `TimeStamp` is missing offset components, those components
 /// will be set to zero.
 impl TryFrom<TimeStamp> for LocalResult<DateTime<FixedOffset>> {
-    type Error = TimeParseError;
+    type Error = DateTimeParseError;
 
     fn try_from(value: TimeStamp) -> Result<Self, Self::Error> {
         let TimeStamp {
@@ -180,8 +257,9 @@ impl TryFrom<TimeStamp> for LocalResult<DateTime<FixedOffset>> {
 
         let month = month.unwrap_or(1);
         let day = day.unwrap_or(1);
-        let date = NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32)
-            .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Date))?;
+        let date = NaiveDate::from_ymd_opt(year as i32, month as u32, day as u32).ok_or(
+            DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Date),
+        )?;
 
         let hour = hour.unwrap_or(0);
         let minute = minute.unwrap_or(0);
@@ -190,13 +268,16 @@ impl TryFrom<TimeStamp> for LocalResult<DateTime<FixedOffset>> {
 
         let time =
             NaiveTime::from_hms_micro_opt(hour as u32, minute as u32, second as u32, microsecond)
-                .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Time))?;
+                .ok_or(DateTimeParseError::InvalidComponentRange(
+                ErroredDateTimeComponent::Time,
+            ))?;
 
         let offset = offset.unwrap_or_default();
         let offset_hours = offset.hours as i32;
         let offset_minutes = offset.minutes as i32;
-        let offset = FixedOffset::east_opt(offset_hours * 3600 + offset_minutes * 60)
-            .ok_or(TimeParseError::InvalidComponentRange(TimeComponent::Offset))?;
+        let offset = FixedOffset::east_opt(offset_hours * 3600 + offset_minutes * 60).ok_or(
+            DateTimeParseError::InvalidComponentRange(ErroredDateTimeComponent::Offset),
+        )?;
 
         let datetime = NaiveDateTime::new(date, time);
         let datetime = datetime.and_local_timezone(offset);
@@ -217,18 +298,18 @@ where
     Tz: TimeZone,
     DateTime<Tz>: From<DateTime<FixedOffset>>,
 {
-    type Error = TimeParseError;
+    type Error = DateTimeParseError;
 
     fn try_from(value: TimeStamp) -> Result<Self, Self::Error> {
         let datetime: LocalResult<DateTime<FixedOffset>> = LocalResult::try_from(value)?;
         match datetime {
             LocalResult::Single(datetime) => Ok(datetime.into()),
-            LocalResult::Ambiguous(earliest, latest) => Err(TimeParseError::AmbiguousTime(
+            LocalResult::Ambiguous(earliest, latest) => Err(DateTimeParseError::AmbiguousTime(
                 earliest.to_rfc3339(),
                 latest.to_rfc3339(),
             )),
-            LocalResult::None => Err(TimeParseError::InvalidComponentRange(
-                TimeComponent::DateTime,
+            LocalResult::None => Err(DateTimeParseError::InvalidComponentRange(
+                ErroredDateTimeComponent::DateTime,
             )),
         }
     }
@@ -272,7 +353,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::timestamps::TimeStampOffset;
+    use crate::datetime::TimeStampOffset;
     use chrono::{Timelike, Utc};
 
     use super::*;

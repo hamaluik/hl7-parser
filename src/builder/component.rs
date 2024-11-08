@@ -1,8 +1,9 @@
-use std::{collections::HashMap, fmt::Display};
-
+use crate::{
+    datetime::TimeStamp,
+    message::{Component, Separators},
+};
 use display::ComponentBuilderDisplay;
-
-use crate::{message::{Component, Separators}, timestamps::TimeStamp};
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -103,11 +104,15 @@ impl ComponentBuilder {
         self
     }
 
-    pub fn set_subcomponent_timestamp<T: Into<TimeStamp>>(&mut self, index: usize, timestamp: T,) {
+    pub fn set_subcomponent_timestamp<T: Into<TimeStamp>>(&mut self, index: usize, timestamp: T) {
         self.set_subcomponent(index, timestamp.into().to_string());
     }
 
-    pub fn with_subcomponent_timestamp<T: Into<TimeStamp>>(mut self, index: usize, timestamp: T) -> Self {
+    pub fn with_subcomponent_timestamp<T: Into<TimeStamp>>(
+        mut self,
+        index: usize,
+        timestamp: T,
+    ) -> Self {
         self.set_subcomponent_timestamp(index, timestamp);
         self
     }
@@ -211,8 +216,8 @@ impl<'m> From<&'m Component<'m>> for ComponentBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::message::Subcomponent;
     use super::*;
+    use crate::message::Subcomponent;
     use pretty_assertions_sorted::assert_eq;
 
     #[test]
@@ -262,6 +267,9 @@ mod tests {
     fn can_convert_with_singular_value() {
         let component = crate::parser::parse_component("foo").expect("Can parse component");
         let component_builder = ComponentBuilder::from(&component);
-        assert_eq!(component_builder, ComponentBuilder::with_value("foo".to_string()));
+        assert_eq!(
+            component_builder,
+            ComponentBuilder::with_value("foo".to_string())
+        );
     }
 }

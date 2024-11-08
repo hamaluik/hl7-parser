@@ -1,9 +1,10 @@
-use display::RepeatBuilderDisplay;
-
-use crate::{message::{Repeat, Separators}, timestamps::TimeStamp};
-use std::{collections::HashMap, fmt::Display};
-
 use super::ComponentBuilder;
+use crate::{
+    datetime::TimeStamp,
+    message::{Repeat, Separators},
+};
+use display::RepeatBuilderDisplay;
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -248,13 +249,15 @@ mod tests {
     fn can_convert_repeat_to_repeat_builder() {
         let repeat = crate::parser::parse_repeat("foo^^bar").expect("Can parse repeat");
         let repeat_builder = RepeatBuilder::from(&repeat);
-        assert_eq_sorted!(repeat_builder, RepeatBuilder::with_components({
-            let mut components = HashMap::new();
-            components.insert(1, ComponentBuilder::with_value("foo".to_string()));
-            components.insert(2, ComponentBuilder::with_value("".to_string()));
-            components.insert(3, ComponentBuilder::with_value("bar".to_string()));
-            components
-        }));
+        assert_eq_sorted!(
+            repeat_builder,
+            RepeatBuilder::with_components({
+                let mut components = HashMap::new();
+                components.insert(1, ComponentBuilder::with_value("foo".to_string()));
+                components.insert(2, ComponentBuilder::with_value("".to_string()));
+                components.insert(3, ComponentBuilder::with_value("bar".to_string()));
+                components
+            })
+        );
     }
 }
-

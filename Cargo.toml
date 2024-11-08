@@ -29,7 +29,7 @@ time = { version = "0.3", optional = true }
 chrono = { version = "0.4", optional = true }
 
 [features]
-default = []
+default = ["serde", "time", "chrono"]
 serde = ["dep:serde"]
 time = ["dep:time"]
 chrono = ["dep:chrono"]
