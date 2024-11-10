@@ -24,7 +24,7 @@ unsafe_code = "forbid"
 [dependencies]
 nom = "7"
 serde = { version = "1", features = ["derive"], optional = true }
-thiserror = "1"
+thiserror = "2"
 time = { version = "0.3", optional = true }
 chrono = { version = "0.4", optional = true }
 
@@ -35,7 +35,7 @@ time = ["dep:time"]
 chrono = ["dep:chrono"]
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = "0.5"
 serde = "1"
 serde_json = "1"
 pretty_assertions_sorted = "1.2"

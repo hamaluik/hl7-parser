@@ -14,7 +14,6 @@ pub struct SegmentBuilder {
     pub fields: HashMap<usize, FieldBuilder>,
 }
 
-
 impl SegmentBuilder {
     /// Create a new segment builder with the given name. No fields are added.
     pub fn new<S: ToString>(name: S) -> Self {

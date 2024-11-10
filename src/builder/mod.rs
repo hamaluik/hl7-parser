@@ -66,7 +66,6 @@ pub struct MessageBuilder {
     segments: Vec<SegmentBuilder>,
 }
 
-
 impl MessageBuilder {
     /// Create a new message builder with the given separators. No segments are added.
     pub fn new(separators: Separators) -> Self {

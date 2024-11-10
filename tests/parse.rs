@@ -4,10 +4,16 @@ static ADT_SRC_ENCODED: &str = include_str!("../test_assets/sample_adt_a01_encod
 #[test]
 pub fn can_parse() {
     hl7_parser::parse_message(ADT_SRC).expect("can parse ADT");
-    hl7_parser::parse_message_with_lenient_newlines(ADT_SRC).expect("can parse ADT with lenient newlines");
+    hl7_parser::parse_message_with_lenient_newlines(ADT_SRC)
+        .expect("can parse ADT with lenient newlines");
 
-    let encoded_message = hl7_parser::parse_message_with_lenient_newlines(ADT_SRC_ENCODED).expect("can parse ADT");
-    let msh_5 = encoded_message.query("MSH.5").expect("can query message").display(&encoded_message.separators).to_string();
+    let encoded_message =
+        hl7_parser::parse_message_with_lenient_newlines(ADT_SRC_ENCODED).expect("can parse ADT");
+    let msh_5 = encoded_message
+        .query("MSH.5")
+        .expect("can query message")
+        .display(&encoded_message.separators)
+        .to_string();
     assert_eq!(msh_5, "Isaac^2");
 }
 

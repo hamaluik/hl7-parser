@@ -38,10 +38,7 @@ pub struct Date {
 /// assert_eq!(date.month, Some(3));
 /// assert_eq!(date.day, Some(12));
 /// ```
-pub fn parse_date(
-    s: &str,
-    lenient_trailing_chars: bool,
-) -> Result<Date, DateTimeParseError> {
+pub fn parse_date(s: &str, lenient_trailing_chars: bool) -> Result<Date, DateTimeParseError> {
     fn is_decimal_digit(c: char) -> bool {
         c.is_ascii_digit()
     }
