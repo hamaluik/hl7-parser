@@ -57,11 +57,11 @@ mod tests {
     fn can_parse_component_with_no_subcomponents_and_escaped_subcomponent_separator() {
         let separators = Separators::default();
 
-        let input = Span::new(r"foo\&bar");
+        let input = Span::new(r"foo\T\bar");
         let actual = parse_component(input, separators).unwrap().1;
         dbg!(&actual);
         assert_eq!(actual.subcomponents.len(), 1);
-        assert_eq!(actual.subcomponents[0].value, r"foo\&bar");
+        assert_eq!(actual.subcomponents[0].value, r"foo\T\bar");
     }
 
     #[test]

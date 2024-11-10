@@ -1,9 +1,5 @@
 use crate::message::{Separators, Subcomponent};
-use nom::{
-    bytes::complete::escaped,
-    character::complete::{none_of, one_of},
-    IResult,
-};
+use nom::{bytes::complete::take_till, IResult};
 
 use super::Span;
 
@@ -18,25 +14,23 @@ fn subcomponent_parser(i: Span, seps: Separators) -> IResult<Span, Subcomponent<
 
     let sep = if seps.lenient_newlines {
         &[
-            seps.subcomponent,
-            seps.component,
-            seps.repetition,
             seps.field,
-            seps.escape,
+            seps.component,
             '\n',
             '\r',
+            seps.subcomponent,
+            seps.repetition,
         ][..]
     } else {
         &[
-            seps.subcomponent,
-            seps.component,
-            seps.repetition,
             seps.field,
-            seps.escape,
+            seps.component,
             '\r',
+            seps.subcomponent,
+            seps.repetition,
         ][..]
     };
-    let (i, v) = escaped(none_of(sep), seps.escape, one_of(sep))(i)?;
+    let (i, v) = take_till(|c: char| sep.contains(&c))(i)?;
 
     let pos_end = i.offset;
     let value = v.input;
@@ -86,21 +80,6 @@ mod tests {
     }
 
     #[test]
-    fn can_parse_subcomponent_with_escape() {
-        let separators = Separators::default();
-
-        let input = Span::new(r"foo|bar\baz^qux");
-        let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(actual.value, "foo");
-        assert_eq!(actual.range, 0..3);
-
-        let input = Span::new(r"foo\|bar\\baz\^qux");
-        let actual = subcomponent_parser(input, separators).unwrap().1;
-        assert_eq!(actual.value, r"foo\|bar\\baz\^qux");
-        assert_eq!(actual.range, 0..18);
-    }
-
-    #[test]
     fn can_parse_subcomponent_with_lenient_newlines() {
         let separators = Separators::default().with_lenient_newlines(true);
 
@@ -121,5 +100,16 @@ mod tests {
         assert_eq!(actual.value, "foo");
         assert_eq!(actual.range, 0..3);
         assert_eq!(input.input, "\r\nbar");
+    }
+
+    #[test]
+    fn can_parse_subcomponent_escape() {
+        let separators = Separators::default().with_lenient_newlines(true);
+
+        let input = Span::new(r"foo\T\bar");
+        let (input, actual) = subcomponent_parser(input, separators).expect("can parse");
+        assert_eq!(actual.value, r"foo\T\bar");
+        assert_eq!(actual.range, 0..9);
+        assert_eq!(input.input, "");
     }
 }

@@ -48,10 +48,12 @@ mod tests {
     fn can_parse_repeat_with_no_subcomponents_and_escaped_component_separator() {
         let separators = Separators::default();
 
-        let input = Span::new(r"foo\^bar");
+        let input = Span::new(r"foo\S\bar");
         let actual = parse_repeat(input, separators).unwrap().1;
         assert_eq!(actual.components.len(), 1);
-        assert_eq!(actual.range, 0..8);
+        assert_eq!(actual.range, 0..9);
         assert_eq!(actual.components[0].subcomponents.len(), 1);
+        let decoded = actual.components[0].display(&separators).to_string();
+        assert_eq!(decoded, "foo^bar");
     }
 }

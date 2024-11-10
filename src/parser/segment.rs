@@ -100,23 +100,23 @@ mod tests {
     fn can_parse_segment_with_repeats_components_and_subcomponents() {
         let separators = Separators::default();
 
-        let input = Span::new(r"MSH|foo^b\~ar^baz&x~qux^quux^quuz|asdf|");
+        let input = Span::new(r"MSH|foo^b\R\ar^baz&x~qux^quux^quuz|asdf|");
         let actual = parse_segment(input, separators).unwrap().1;
         // dbg!(&actual);
         assert_eq!(actual.name, "MSH");
         assert_eq!(actual.fields.len(), 3);
         assert_eq!(
             actual.fields[0].raw_value(),
-            r"foo^b\~ar^baz&x~qux^quux^quuz"
+            r"foo^b\R\ar^baz&x~qux^quux^quuz"
         );
         assert_eq!(actual.fields[0].repeats.len(), 2);
-        assert_eq!(actual.fields[0].repeats[0].raw_value(), r"foo^b\~ar^baz&x");
+        assert_eq!(actual.fields[0].repeats[0].raw_value(), r"foo^b\R\ar^baz&x");
         assert_eq!(actual.fields[0].repeats[1].raw_value(), r"qux^quux^quuz");
         assert_eq!(actual.fields[0].repeats[0].components.len(), 3);
         assert_eq!(actual.fields[0].repeats[0].components[0].raw_value(), "foo");
         assert_eq!(
             actual.fields[0].repeats[0].components[1].raw_value(),
-            r"b\~ar"
+            r"b\R\ar"
         );
         assert_eq!(
             actual.fields[0].repeats[0].components[2].raw_value(),
