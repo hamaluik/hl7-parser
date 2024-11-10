@@ -1,7 +1,9 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, ops::Range};
 
 use crate::{
-    message::{Component, Field, Repeat, Segment, Subcomponent},
+    message::{
+        Component, DecodedSeparatorsDisplay, Field, Repeat, Segment, Separators, Subcomponent,
+    },
     Message,
 };
 
@@ -133,6 +135,38 @@ impl Display for LocatedCursor<'_> {
     }
 }
 
+impl<'m> LocatedCursor<'m> {
+    /// Get the raw value of the field, repeat, component, or sub-component at the cursor location.
+    /// Returns `None` if the cursor is not located at a field, repeat, component, or
+    /// sub-component.
+    pub fn raw_value(&self) -> Option<&str> {
+        self.sub_component
+            .map(|(_, sub_component)| sub_component.raw_value())
+            .or_else(|| self.component.map(|(_, component)| component.raw_value()))
+            .or_else(|| self.repeat.map(|(_, repeat)| repeat.raw_value()))
+            .or_else(|| self.field.map(|(_, field)| field.raw_value()))
+    }
+
+    /// Get the range of the field, repeat, component, or sub-component at the cursor location.
+    /// Returns `None` if the cursor is not located at a field, repeat, component, or
+    /// sub-component.
+    pub fn range(&self) -> Option<&'m Range<usize>> {
+        self.sub_component
+            .map(|(_, sub_component)| &sub_component.range)
+            .or_else(|| self.component.map(|(_, component)| &component.range))
+            .or_else(|| self.repeat.map(|(_, repeat)| &repeat.range))
+            .or_else(|| self.field.map(|(_, field)| &field.range))
+    }
+
+    /// Get the decoded value of the field, repeat, component, or sub-component at the cursor
+    /// location. Returns `None` if the cursor is not located at a field, repeat, component, or
+    /// sub-component.
+    pub fn value(&'m self, separators: &'m Separators) -> Option<DecodedSeparatorsDisplay<'m>> {
+        self.raw_value()
+            .map(|raw_value| separators.decode(raw_value))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -176,5 +210,16 @@ mod test {
         assert_eq!(cursor.segment.unwrap().1, 1);
         assert_eq!(cursor.field.unwrap().0, 1);
         assert_eq!(cursor.field.unwrap().1.raw_value(), "");
+    }
+
+    #[test]
+    fn can_get_cursor_location_value() {
+        let message = Message::parse("MSH|^~\\&|asdf\rPID|1\\S\\2|0").unwrap();
+        let cursor = locate_cursor(&message, 19).expect("cursor is located");
+        let value = cursor
+            .value(&message.separators)
+            .expect("value is decoded")
+            .to_string();
+        assert_eq!(value, "1^2");
     }
 }
