@@ -1,7 +1,7 @@
 [package]
 name = "hl7-parser"
 authors = ["Kenton Hamaluik <kenton@hamaluik.ca>"]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Parses the structure of HL7v2 messages, but does not validate the correctness of the messages."
 documentation = "https://docs.rs/hl7-parser"
@@ -11,35 +11,39 @@ license = "Apache-2.0"
 keywords = ["hl7", "health", "parse", "parser"]
 categories = ["parser-implementations", "science"]
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "./src/bin/profiled-parse.rs"
+name = "profiled-parse"
+
 [lints.rust]
 unsafe_code = "forbid"
 
 [dependencies]
-indexmap = { version = "2.1", features = ["serde"] }
 nom = "7"
-nom_locate = "4"
 serde = { version = "1", features = ["derive"], optional = true }
-thiserror = "1"
+thiserror = "2"
 time = { version = "0.3", optional = true }
 chrono = { version = "0.4", optional = true }
+jiff = { version = "0.2", optional = true }
 
 [features]
 default = []
 serde = ["dep:serde"]
 time = ["dep:time"]
 chrono = ["dep:chrono"]
+jiff = ["dep:jiff"]
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = "0.5"
 serde = "1"
 serde_json = "1"
+pretty_assertions_sorted = "1.2"
 
 [[bench]]
 name = "parse"
-harness = false
-
-[[bench]]
-name = "parse_buf"
 harness = false
 
 [[bench]]
@@ -58,10 +62,8 @@ harness = false
 name = "timestamp"
 harness = false
 
-[profile.release]
-debug = true
-
-[profile.bench]
+[profile.profiling]
+inherits = "release"
 debug = true
 
 [package.metadata.docs.rs]

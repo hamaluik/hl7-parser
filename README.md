@@ -20,7 +20,7 @@ Parses the structure of [HL7v2] messages, but does not validate the correctness 
 ## Features
 
 - [x] Parse HL7v2 messages into a structure that can be queried
-- [x] Parse HL7v2 timestamps into [chrono] or [time] types
+- [x] Parse HL7v2 timestamps into [chrono], [time], and [jiff] types
 - [x] Decode HL7v2 encoded strings
 - [x] Locate a cursor within a message based on a character index
 - [x] Optional lenient parsing of segment separators (allow `\r\n`, `\n`, and `\r` to count as segment separators instead of just `\r`)
@@ -56,10 +56,12 @@ By default, no optional features are enabled.
 - `serde`: enable [serde] support for all data structures
 - `time`: enable [time] support for parsing timestamps
 - `chrono`: enable [chrono] support for parsing timestamps
+- `jiff`: enable [jiff] support for parsing timestamps
 
 [serde]: https://crates.io/crates/serde
 [time]: https://crates.io/crates/time
 [chrono]: https://crates.io/crates/chrono
+[jiff]: https://crates.io/crates/jiff
 
 ## Examples
 
@@ -111,49 +113,6 @@ let location = message.locate_cursor(25);
 assert_eq!(location.segment.unwrap().0, "MSH");
 assert_eq!(location.field.unwrap().0.get(), 7);
 assert_eq!(location.field.unwrap().1.source(message.source), "20050110045504");
-```
-
-### Parsing ParsedMessage Timestamps
-
-#### Using the `time` crate
-
-```rust
-#[cfg(feature = "time")]
-use hl7_parser::parse_timestamp_time;
-
-let ts = "20230312195905-0700";
-let ts = parse_timestamp_time(ts).expect("can parse timestamp");
-
-assert_eq!(ts.year(), 2023);
-assert_eq!(ts.month(), time::Month::March);
-assert_eq!(ts.day(), 12);
-assert_eq!(ts.hour(), 19);
-assert_eq!(ts.minute(), 59);
-assert_eq!(ts.second(), 05);
-assert_eq!(ts.microsecond(), 0);
-assert_eq!(ts.offset().whole_hours(), -7);
-assert_eq!(ts.offset().minutes_past_hour(), 0);
-```
-
-#### Using the `chrono` crate
-
-```rust
-#[cfg(feature = "chrono")]
-use hl7_parser::parse_timestamp_chrono;
-use chrono::prelude::*;
-
-let ts = "20230312195905-0700";
-let ts = parse_timestamp_chrono(ts).expect("can parse timestamp");
-
-assert_eq!(ts.year(), 2023);
-assert_eq!(ts.month(), 3);
-assert_eq!(ts.day(), 12);
-assert_eq!(ts.hour(), 19);
-assert_eq!(ts.minute(), 59);
-assert_eq!(ts.second(), 05);
-assert_eq!(ts.nanosecond(), 123_400_000);
-assert_eq!(ts.offset().local_minus_utc() / 3600, -7);
-assert_eq!(ts.offset().local_minus_utc() % 3600, 0);
 ```
 
 ### Decoding Encoded Strings
