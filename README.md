@@ -1,13 +1,13 @@
-# hl7-parser &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![Docs]][docs] [![License]][license]
+# hl7-parser &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![Docs]][docslink] [![License]][licenseblob]
 
 [Build Status]: https://img.shields.io/github/actions/workflow/status/hamaluik/hl7-parser/ci.yml
 [actions]: https://github.com/hamaluik/hl7-parser/actions?query=branch%3Amain
 [Latest Version]: https://img.shields.io/crates/v/hl7-parser.svg
 [crates.io]: https://crates.io/crates/hl7-parser
 [Docs]: https://img.shields.io/docsrs/hl7-parser
-[docs]: https://docs.rs/hl7-parser/latest/hl7_parser/
+[docslink]: https://docs.rs/hl7-parser/latest/hl7_parser/
 [License]: https://img.shields.io/github/license/hamaluik/hl7-parser
-[license]: https://github.com/hamaluik/hl7-parser/blob/main/LICENSE
+[licenseblob]: https://github.com/hamaluik/hl7-parser/blob/main/LICENSE
 
 Parses the structure of [HL7v2] messages, but does not validate the correctness of the messages.
 
@@ -40,13 +40,19 @@ hl7-parser = "0.3"
 and then you can parse HL7v2 messages:
 
 ```rust
-use hl7_parser::ParsedMessage;
+use hl7_parser::{Message, datetime::TimeStamp};
+use std::str::FromStr;
 
-let message = include_str!("../test_assets/sample_adt_a01.hl7");
-let message = ParsedMessage::parse(&message, true).expect("can parse message");
+let message =
+Message::parse("MSH|^~\\&|foo|bar|baz|quux|20010504094523||ADT^A01|1234|P|2.3|||").unwrap();
+let msh = message.segment("MSH").unwrap();
+assert_eq!(msh.field(3).unwrap().raw_value(), "foo");
 
-let trigger_event = message.query_value("MSH.9.2").expect("can parse location query");
-assert_eq!(trigger_event, Some("A01"));
+let message_time = msh.field(7).unwrap();
+let time: TimeStamp = message_time.raw_value().parse().unwrap();
+assert_eq!(time.year, 2001);
+assert_eq!(time.month, Some(5));
+assert_eq!(time.day, Some(4));
 ```
 
 ### Optional Cargo Features
@@ -63,67 +69,95 @@ By default, no optional features are enabled.
 [chrono]: https://crates.io/crates/chrono
 [jiff]: https://crates.io/crates/jiff
 
-## Examples
+## Additional Examples
 
-### Parsing a ParsedMessage
-
-```rust
-use hl7_parser::ParsedMessage;
-use std::num::NonZeroUsize;
-
-let message = r#"
-MSH|^~\&|AccMgr|1|||20050110045504||ADT^A01|599102|P|2.3|||
-PID|1||10006579^^^1^MRN^1||DUCK^DONALD^D||19241010|M||1|111 DUCK ST^^FOWL^CA^999990000^^M|1|8885551212|8885551212|1|2||40007716^^^AccMgr^VN^1|123121234|||||||||||NO NK1|1|DUCK^HUEY|SO|3583 DUCK RD^^FOWL^CA^999990000|8885552222||Y||||||||||||||
-PV1|1|I|PREOP^101^1^1^^^S|3|||37^DISNEY^WALT^^^^^^AccMgr^^^^CI|||01||||1|||37^DISNEY^WALT^^^^^^AccMgr^^^^CI|2|40007716^^^AccMgr^VN|4|||||||||||||||||||1||G|||20050110045253||||||
-"#;
-
-let message = ParsedMessage::parse(message.trim(), true).expect("can parse message");
-let message_type = message.get_field_source(("MSH", 0), NonZeroUsize::new(9).unwrap());
-assert_eq!(message_type.unwrap(), "ADT^A01");
-```
-
-### Querying a ParsedMessage
+### Querying a Message
 
 ```rust
-use hl7_parser::ParsedMessage;
-
-let message = include_str!("../test_assets/sample_adt_a01.hl7");
-let message = ParsedMessage::parse(&message, true).expect("can parse message");
-
-let trigger_event = message.query_value("MSH.9.2").expect("can parse location query");
-assert_eq!(trigger_event, Some("A01"));
+let message =
+hl7_parser::Message::parse("MSH|^~\\&|foo|bar|baz|quux|20010504094523||ADT^A01|1234|P|2.3|||").unwrap();
+let field = message.query("MSH.3").unwrap().raw_value();
+assert_eq!(field, "foo");
+let component = message.query("MSH.7.1").unwrap().raw_value();
+assert_eq!(component, "20010504094523");
 ```
 
-### Locating the Cursor Within A ParsedMessage
+### Locating the Cursor Within A Message
 
 (The cursor being the character index of some point within the buffer)
 
 ```rust
-use hl7_parser::ParsedMessage;
-use std::num::NonZeroUsize;
-
-let message = r#"
-MSH|^~\&|AccMgr|1|||20050110045504||ADT^A01|599102|P|2.3|||
-PID|1||10006579^^^1^MRN^1||DUCK^DONALD^D||19241010|M||1|111 DUCK ST^^FOWL^CA^999990000^^M|1|8885551212|8885551212|1|2||40007716^^^AccMgr^VN^1|123121234|||||||||||NO NK1|1|DUCK^HUEY|SO|3583 DUCK RD^^FOWL^CA^999990000|8885552222||Y||||||||||||||
-PV1|1|I|PREOP^101^1^1^^^S|3|||37^DISNEY^WALT^^^^^^AccMgr^^^^CI|||01||||1|||37^DISNEY^WALT^^^^^^AccMgr^^^^CI|2|40007716^^^AccMgr^VN|4|||||||||||||||||||1||G|||20050110045253||||||
-"#;
-
-let message = ParsedMessage::parse(message.trim(), true).expect("can parse message");
-let location = message.locate_cursor(25);
-assert_eq!(location.segment.unwrap().0, "MSH");
-assert_eq!(location.field.unwrap().0.get(), 7);
-assert_eq!(location.field.unwrap().1.source(message.source), "20050110045504");
+let message = Message::parse("MSH|^~\\&|asdf\rPID|1|0").unwrap();
+let cursor = locate_cursor(&message, 19).expect("cursor is located");
+assert_eq!(cursor.segment.unwrap().0, "PID");
+assert_eq!(cursor.segment.unwrap().1, 1);
+assert_eq!(cursor.field.unwrap().0, 1);
+assert_eq!(cursor.field.unwrap().1.raw_value(), "1");
 ```
 
 ### Decoding Encoded Strings
 
 ```rust
-use hl7_parser::Separators;
+use hl7_parser::message::Separators;
+let separators = Separators::default(); // or, from a parsed message
+let input = "foo|bar^baz&quux~quuz\\corge\rquack\nduck";
+let expected = r"foo\F\bar\S\baz\T\quux\R\quuz\E\corge\X0D\quack\X0A\duck";
+let actual = separators.encode(input).to_string();
+assert_eq!(expected, actual);
+```
 
-let separators = Separators::default();
-assert_eq!(
-    separators.decode(r#"Pierre DuRho\S\ne \T\ Cie"#).as_str(),
-    r#"Pierre DuRho^ne & Cie"#
-);
+### Parsing Timestamps
+
+```rust
+use hl7_parser::datetime::{parse_timestamp, TimeStamp, TimeStampOffset};
+
+let ts: TimeStamp = parse_timestamp("20230312195905.1234-0700", false).expect("can parse timestamp");
+
+assert_eq!(ts.year, 2023);
+assert_eq!(ts.month, Some(3));
+assert_eq!(ts.day, Some(12));
+assert_eq!(ts.hour, Some(19));
+assert_eq!(ts.minute, Some(59));
+assert_eq!(ts.second, Some(5));
+assert_eq!(ts.microsecond, Some(123_400));
+assert_eq!(ts.offset, Some(TimeStampOffset {
+    hours: -7,
+    minutes: 0,
+}));
+```
+
+These `TimeStamp` values can then be converted to and from `chrono`, `time`,
+and `jiff` types if the corresponding features are enabled using [std::convert::From]
+and [std::convert::TryFrom].
+
+### Building HL7 messages
+
+```rust
+use hl7_parser::builder::prelude::*;
+
+let message = MessageBuilder::new(Separators::default())
+    .with_segment(SegmentBuilder::new("MSH")
+        .with_field_value(3, "SendingApp")
+        .with_field_value(4, "SendingFac")
+        .with_field_value(5, "ReceivingApp")
+        .with_field_value(6, "ReceivingFac")
+        .with_field(9,
+            FieldBuilder::default()
+                .with_component(1, "ADT")
+                .with_component(2, "A01"))
+        .with_field_value(10, "123456")
+        .with_field_value(11, "P")
+        .with_field_value(12, "2.3"))
+    .with_segment(SegmentBuilder::new("PID")
+        .with_field_value(3, "123456")
+        .with_field(5,
+            FieldBuilder::default()
+                .with_component(1, "Doe")
+                .with_component(2, "John"))
+        .with_field_value(7, "19700101"))
+    .render_with_newlines().to_string();
+
+assert_eq!(message,
+"MSH|^~\\&|SendingApp|SendingFac|ReceivingApp|ReceivingFac|||ADT^A01|123456|P|2.3\nPID|||123456||Doe^John||19700101");
 ```
 
