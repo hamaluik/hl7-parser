@@ -7,15 +7,17 @@ pub use time::*;
 mod date;
 pub use date::*;
 
-/// Utilities to convert back and forth between `TimeStamp`s and `chrono`'s `DateTime` and
-/// `NaiveDateTime`
+/// Utilies to convert back and forth between chrono's data structures and the hl7-parser ones
 #[cfg(feature = "chrono")]
 pub mod chrono;
 
-/// Utilities to convert back and forth between `TimeStamp`s and `time`'s `OffsetDateTime`
-/// and `PrimitiveDateTime`
+/// Utilies to convert back and forth between time's data structures and the hl7-parser ones
 #[cfg(feature = "time")]
 pub mod time_crate;
+
+/// Utilies to convert back and forth between jiff's data structures and the hl7-parser ones
+#[cfg(feature = "jiff")]
+pub mod jiff;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ErroredDateTimeComponent {

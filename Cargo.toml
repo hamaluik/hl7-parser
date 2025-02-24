@@ -27,12 +27,14 @@ serde = { version = "1", features = ["derive"], optional = true }
 thiserror = "2"
 time = { version = "0.3", optional = true }
 chrono = { version = "0.4", optional = true }
+jiff = { version = "0.2", optional = true }
 
 [features]
-default = ["serde", "time", "chrono"]
+default = ["serde", "time", "chrono", "jiff"]
 serde = ["dep:serde"]
 time = ["dep:time"]
 chrono = ["dep:chrono"]
+jiff = ["dep:jiff"]
 
 [dev-dependencies]
 criterion = "0.5"
