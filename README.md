@@ -1,6 +1,6 @@
 # hl7-parser &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![Docs]][docs] [![License]][license]
 
-[Build Status]: https://img.shields.io/github/actions/workflow/status/hamaluik/hl7-parser/rust.yml
+[Build Status]: https://img.shields.io/github/actions/workflow/status/hamaluik/hl7-parser/ci.yml
 [actions]: https://github.com/hamaluik/hl7-parser/actions?query=branch%3Amain
 [Latest Version]: https://img.shields.io/crates/v/hl7-parser.svg
 [crates.io]: https://crates.io/crates/hl7-parser
@@ -34,7 +34,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hl7-parser = "0.2"
+hl7-parser = "0.3"
 ```
 
 and then you can parse HL7v2 messages:
